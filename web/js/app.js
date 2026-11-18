@@ -47,7 +47,7 @@ function cancelLabPending() {
     clearTimeout(id);
     debounceTimers.delete(k);
   }
-  for (const ch of ["activeLab", "coach"]) {
+  for (const ch of ["activeLab", "coach", "cpHelper"]) {
     if (inFlightControllers.has(ch)) {
       inFlightControllers.get(ch).abort();
       inFlightControllers.delete(ch);
@@ -267,9 +267,22 @@ function renderRockers() {
             if (key === "inviscid" && state.assumptions.inviscid) {
               state.assumptions.irreversible_jump = false;
             }
+            if (state.activeCoachContext?.parsedQuery?.assumptions) {
+              state.activeCoachContext.parsedQuery.assumptions = {
+                ...state.activeCoachContext.parsedQuery.assumptions,
+                ...state.assumptions,
+              };
+            }
             renderRockers();
             refreshAudit();
-            applyAssumptionToActiveLab(key);
+            const didResolve = applyAssumptionToActiveLab(key);
+            if (!didResolve && state.activeCoachContext?.parsedQuery) {
+              bus.emit("solver:updated", {
+                parsedQuery: state.activeCoachContext.parsedQuery,
+                solverData: state.activeCoachContext.solverData ?? null,
+                suggestedPrompt: state.activeCoachContext.suggestedPrompt || "",
+              });
+            }
           };
         }
       }
@@ -395,6 +408,16 @@ function setDrawerCards(cards) {
   body.appendChild(grid);
 }
 
+function formatAiProviderLabel(rawProvider) {
+  const key = String(rawProvider || "offline").toLowerCase().trim();
+  if (key.includes("offline")) return "Offline Grounded Coach";
+  if (key.includes("gemini")) return "Google Gemini Coach";
+  if (key.includes("openai") || key.includes("groq") || key.includes("ollama")) {
+    return "OpenAI-Compatible Coach";
+  }
+  return key.replaceAll("_", " ").replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
 function updateAiBadge() {
   const badge = document.getElementById("aiEngineBadge");
   if (badge) {
@@ -403,8 +426,22 @@ function updateAiBadge() {
         ? "AI: Offline"
         : `AI: ${state.llmConfig.provider.toUpperCase()}`;
   }
+  const friendly = formatAiProviderLabel(state.llmConfig.provider);
   const tag = document.getElementById("s1CoachModeTag");
-  if (tag) tag.textContent = state.llmConfig.provider.toUpperCase();
+  if (tag) tag.textContent = friendly;
+  const s1Sum = document.getElementById("s1LlmSummary");
+  if (s1Sum) s1Sum.textContent = `AI Engine Settings (${friendly})`;
+  const drawerBadge = document.getElementById("coachDrawerProviderBadge");
+  if (drawerBadge) drawerBadge.textContent = friendly;
+
+  const s1Prov = document.getElementById("s1SelLlmProv");
+  if (s1Prov) s1Prov.value = state.llmConfig.provider || "offline";
+  const s1Model = document.getElementById("s1InLlmModel");
+  if (s1Model) s1Model.value = state.llmConfig.model || "";
+  const s1Key = document.getElementById("s1InLlmKey");
+  if (s1Key) s1Key.value = state.llmConfig.api_key || "";
+  const s1Url = document.getElementById("s1InLlmUrl");
+  if (s1Url) s1Url.value = state.llmConfig.base_url || "https://api.openai.com/v1";
 }
 
 function renderAIConfigModal() {
@@ -416,7 +453,7 @@ function renderAIConfigModal() {
   const div = document.createElement("div");
   div.id = "aiModal";
   div.style.cssText =
-    "position:fixed;top:60px;right:18px;width:330px;z-index:60;background:var(--bg-bay);border:1px solid var(--accent);padding:14px;border-radius:8px;box-shadow:var(--shadow-md);";
+    "position:fixed;top:60px;right:12px;width:min(330px,calc(100vw - 24px));max-height:calc(100vh - 80px);overflow-y:auto;z-index:60;background:var(--bg-bay);border:1px solid var(--accent);padding:14px;border-radius:8px;box-shadow:var(--shadow-md);";
   div.innerHTML = `
     <div class="bay-header"><span>AI Engine Settings</span><button class="btn-machined btn-xs" id="closeAiModal">Close</button></div>
     <div class="field-group" style="margin-top:10px;">
@@ -498,6 +535,8 @@ function openStation(bayId) {
   state.activeCoachContext = { parsedQuery: null, solverData: null, suggestedPrompt: "" };
   flowEngine.setInteractiveHandles?.([], null);
   flowEngine.setDrawMode?.(null, null);
+  flowEngine.setExternalHover?.(null);
+  plotEngine.setExternalHover?.(null);
   closeCoachDrawerHost();
   const warnBox = document.getElementById("assumptionWarnings");
   if (warnBox) warnBox.innerHTML = "";
@@ -524,6 +563,7 @@ function getActiveLabEntry() {
 
 function updateLabPillsUI() {
   const activeEntry = getActiveLabEntry();
+  const activeIdx = LAB_CATALOG.indexOf(activeEntry);
   document.querySelectorAll(".lab-pill").forEach((pill) => {
     const match = pill.dataset.bay === activeEntry.bay && pill.dataset.sub === activeEntry.sub;
     pill.classList.toggle("active", match);
@@ -536,9 +576,26 @@ function updateLabPillsUI() {
   document.querySelectorAll(".lab-pill-group").forEach((grp) => {
     grp.classList.toggle("is-active-group", grp.dataset.labGroup === activeEntry.category);
   });
+  const prevBtnEl = document.getElementById("btnPrevLab");
+  if (prevBtnEl) {
+    const atStart = activeIdx <= 0;
+    prevBtnEl.disabled = atStart;
+    prevBtnEl.title = atStart
+      ? "Already at first lab (2A)"
+      : `Previous Lab (${LAB_CATALOG[activeIdx - 1]?.id || ""})`;
+  }
+  const nextBtnEl = document.getElementById("btnNextLab");
+  if (nextBtnEl) {
+    const atEnd = activeIdx < 0 || activeIdx >= LAB_CATALOG.length - 1;
+    nextBtnEl.disabled = atEnd;
+    nextBtnEl.title = atEnd
+      ? "Already at last lab (4D)"
+      : `Next Lab (${LAB_CATALOG[activeIdx + 1]?.id || ""})`;
+  }
 }
 
 function openView(view) {
+  const prevView = state.activeView;
   state.activeView = view;
   const overviewEl = document.getElementById("overviewView");
   const workbenchEl = document.getElementById("workbenchView");
@@ -552,6 +609,8 @@ function openView(view) {
     cancelLabPending();
     flowEngine.setInteractiveHandles?.([], null);
     flowEngine.setDrawMode?.(null, null);
+    flowEngine.setExternalHover?.(null);
+    plotEngine.setExternalHover?.(null);
     closeCoachDrawerHost();
     overviewEl.classList.remove("hidden");
     workbenchEl.classList.add("hidden");
@@ -567,6 +626,9 @@ function openView(view) {
   } else {
     labStrip.classList.add("hidden");
     state.activeBay = view; // "01" or "05"
+  }
+  if (prevView !== view) {
+    window.scrollTo({ top: 0, behavior: "auto" });
   }
   updateLabPillsUI();
   openStation(state.activeBay);
@@ -591,11 +653,13 @@ function applyTheme(theme) {
   const label = document.getElementById("themeLabel");
   if (icon) icon.innerHTML = mode === "dark" ? "&#9790;" : "&#9788;";
   if (label) label.textContent = mode === "dark" ? "Dark Mode" : "Light Mode";
-  requestAnimationFrame(() => {
+  const repaintBoth = () => {
     plotEngine.render();
     if (typeof flowEngine.render === "function") flowEngine.render();
     else if (typeof flowEngine._render === "function") flowEngine._render();
-  });
+  };
+  repaintBoth();
+  requestAnimationFrame(repaintBoth);
 }
 
 // Event Bus Cross-Module Subscriptions
@@ -816,7 +880,8 @@ document.querySelectorAll(".lab-cat-tab").forEach((tab) => {
 const stepLab = (delta) => {
   const cur = getActiveLabEntry();
   const idx = LAB_CATALOG.indexOf(cur);
-  const nextIdx = (idx + delta + LAB_CATALOG.length) % LAB_CATALOG.length;
+  const nextIdx = idx + delta;
+  if (nextIdx < 0 || nextIdx >= LAB_CATALOG.length) return;
   const target = LAB_CATALOG[nextIdx];
   openLab(target.bay, target.sub);
 };
