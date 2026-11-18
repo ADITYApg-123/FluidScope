@@ -271,11 +271,15 @@ async def api_accel_tank(request: Request) -> JSONResponse:
 async def api_lbm_tunnel(request: Request) -> JSONResponse:
     try:
         body: dict[str, Any] = await request.json()
+        obstacles = body.get("obstacles") if body.get("obstacles") is not None else body.get("customObstacles")
+        preset = body.get("preset", "cylinder")
+        if isinstance(obstacles, list) and len(obstacles) > 0 and (body.get("customObstacles") is not None or preset == "custom"):
+            preset = "custom"
         data = simulate_lbm_tunnel(
-            preset=body.get("preset", "cylinder"),
+            preset=preset,
             reynolds=float(body.get("reynolds", 100.0)),
             n_steps=int(body.get("n_steps", 450)),
-            obstacles=body.get("obstacles"),
+            obstacles=obstacles,
         )
         return JSONResponse({"ok": True, "data": data})
     except Exception as exc:
@@ -388,8 +392,13 @@ async def api_parse_and_solve(request: Request) -> JSONResponse:
         text = str(body.get("text", "")).strip()
         cfg = LLMConfig.model_validate(body.get("llm_config") or {})
         parsed = parse_problem(text, cfg)
-        audit = audit_assumptions(parsed.assumptions)
         solver_data = _dispatch_parsed_solver(parsed)
+        if parsed.family == "kinematics_equation" and isinstance(solver_data, dict) and "classification" in solver_data:
+            cls = solver_data["classification"]
+            for flag in ("steady", "incompressible", "irrotational"):
+                if flag in cls:
+                    parsed.assumptions[flag] = bool(cls[flag])
+        audit = audit_assumptions(parsed.assumptions)
         return JSONResponse({
             "ok": True,
             "data": {

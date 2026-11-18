@@ -9,8 +9,11 @@ from __future__ import annotations
 import re
 from typing import Any
 
+import sympy as sp
+
 from fluidscope.ai.schemas import GeometryPrimitive, LLMConfig, ParsedPhysicsQuery
 from fluidscope.ai.llm_client import call_llm_json
+from fluidscope.core.kinematics import _T, _X, _Y, safe_parse_velocity
 
 
 def _extract_first_float(pattern: str, text: str, default: float | None = None) -> float | None:
@@ -59,17 +62,42 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
     # 1. Explicit 2D velocity equations u = ..., v = ...
     u_eq, v_eq = _extract_equations(raw)
     if u_eq is not None and v_eq is not None:
-        t0 = _extract_first_float(r"\bt0\s*=\s*([0-9.]+)", raw, 1.0) or 1.0
-        v0 = _extract_first_float(r"\bv0\s*=\s*([0-9.]+)", raw, 1.0) or 1.0
-        unsteady = "t" in u_eq or "t" in v_eq
-        t_eval = _extract_first_float(r"\bt\s*=\s*([0-9.]+)", raw, 2.0 * t0) or (2.0 * t0)
+        t0_val = _extract_first_float(r"\bt0\s*=\s*([-0-9.]+)", raw, 1.0)
+        t0 = t0_val if t0_val is not None else 1.0
+        v0_val = _extract_first_float(r"\bv0\s*=\s*([-0-9.]+)", raw, 1.0)
+        v0 = v0_val if v0_val is not None else 1.0
+        t_eval_val = _extract_first_float(r"\bt\s*=\s*([-0-9.]+)", raw, 2.0 * t0)
+        t_eval = t_eval_val if t_eval_val is not None else (2.0 * t0)
         if t_eval <= t0:
             t_eval = t0 + 1.0
+
+        kin_params = {"t0": t0, "v0": v0}
+        try:
+            _, u_expr = safe_parse_velocity(u_eq, kin_params)
+            _, v_expr = safe_parse_velocity(v_eq, kin_params)
+            du_dt = sp.simplify(sp.diff(u_expr, _T))
+            dv_dt = sp.simplify(sp.diff(v_expr, _T))
+            div_expr = sp.simplify(sp.diff(u_expr, _X) + sp.diff(v_expr, _Y))
+            vort_expr = sp.simplify(sp.diff(v_expr, _X) - sp.diff(u_expr, _Y))
+            steady = (du_dt == 0) and (dv_dt == 0)
+            incompressible = bool(div_expr == 0)
+            irrotational = bool(vort_expr == 0)
+        except ValueError:
+            steady = not (re.search(r"\bt\b", u_eq) or re.search(r"\bt\b", v_eq))
+            incompressible = False
+            irrotational = False
+        unsteady = not steady
+
         return ParsedPhysicsQuery(
             family="kinematics_equation",
             confidence=0.96,
             parser_mode="offline_deterministic",
-            assumptions={"steady": not unsteady, "inviscid": True, "irrotational": True},
+            assumptions={
+                "steady": bool(steady),
+                "incompressible": bool(incompressible),
+                "inviscid": True,
+                "irrotational": bool(irrotational),
+            },
             params={
                 "u_str": u_eq,
                 "v_str": v_eq,
@@ -111,13 +139,15 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
     if ("rpm" in low or "rotat" in low) and any(k in low for k in ["tank", "vessel", "cylinder", "uncover", "spill"]):
         d_m = _extract_first_float(r"diameter\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low)
         r_m = _extract_first_float(r"radius\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low)
-        radius = r_m if r_m else (0.5 * d_m if d_m else 0.30)
-        rpm = _extract_first_float(r"([0-9.]+)\s*rpm", low, 130.0) or 130.0
-        height = _extract_first_float(r"height\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low, 0.503) or 0.503
+        radius = r_m if r_m is not None else (0.5 * d_m if d_m is not None else 0.30)
+        rpm_val = _extract_first_float(r"([0-9.]+)\s*rpm", low, 130.0)
+        rpm = rpm_val if rpm_val is not None else 130.0
+        height_val = _extract_first_float(r"height\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low, 0.503)
+        height = height_val if height_val is not None else 0.503
         return ParsedPhysicsQuery(
             family="rotating_vessel",
             confidence=0.94,
-            assumptions={"steady": True, "inviscid": True, "irrotational": False},
+            assumptions={"steady": True, "incompressible": True, "inviscid": True, "irrotational": False},
             params={"radius": radius, "vessel_height": height, "initial_depth": height, "rpm": rpm},
             concept_twist="Forced vortex solid-body rotation: liquid spills at top rim and uncovers dry center area while total head rises with r².",
             broken_shortcut="Applying constant-head Bernoulli across rotating radii or ignoring base detachment volume loss.",
@@ -132,14 +162,18 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
                 "spiral" if "spiral" in low else "free"
             )
         )
-        r1 = _extract_first_float(r"inner\s*(?:radius|radii|wall)[^0-9]*([0-9.]+)\s*(m|cm|mm)?", low, 0.15) or 0.15
-        r2 = _extract_first_float(r"outer\s*(?:radius|radii|wall)[^0-9]*([0-9.]+)\s*(m|cm|mm)?", low, 0.45) or 0.45
-        omega = _extract_first_float(r"(?:omega|angular)\s*(?:=|of)?\s*([0-9.]+)", low, 10.0) or 10.0
-        c_val = _extract_first_float(r"\bc\s*=\s*([0-9.]+)", low, 0.9) or 0.9
+        r1_val = _extract_first_float(r"inner\s*(?:radius|radii|wall)[^0-9]*([0-9.]+)\s*(m|cm|mm)?", low, 0.15)
+        r1 = r1_val if r1_val is not None else 0.15
+        r2_val = _extract_first_float(r"outer\s*(?:radius|radii|wall)[^0-9]*([0-9.]+)\s*(m|cm|mm)?", low, 0.45)
+        r2 = r2_val if r2_val is not None else 0.45
+        omega_val = _extract_first_float(r"(?:omega|angular)\s*(?:=|of)?\s*([0-9.]+)", low, 10.0)
+        omega = omega_val if omega_val is not None else 10.0
+        c_ext = _extract_first_float(r"\bc\s*=\s*([0-9.]+)", low, 0.9)
+        c_val = c_ext if c_ext is not None else 0.9
         return ParsedPhysicsQuery(
             family="vortex_flow",
             confidence=0.92,
-            assumptions={"steady": True, "inviscid": True, "irrotational": mode in {"free", "spiral"}},
+            assumptions={"steady": True, "incompressible": True, "inviscid": True, "irrotational": mode in {"free", "spiral"}},
             params={"mode": mode, "strength_c": c_val, "omega": omega, "r1": r1, "r2": max(r2, r1 + 0.05), "r_max": max(0.6, r2 * 1.25)},
             concept_twist=(
                 "Forced vortex has constant vorticity Ωz = 2ω: total head increases outward (dH/dr = 2ω²r/g), reversing naive Bernoulli Δp sign."
@@ -153,18 +187,20 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
 
     # 5. Hydraulic Jump
     if any(k in low for k in ["hydraulic jump", "sluice", "conjugate depth", "apron", "froude"]):
-        v1 = _extract_first_float(r"(?:velocity|v1|at)\s*(?:of|=)?\s*([0-9.]+)\s*m/s", low, 6.1) or 6.1
+        v1_val = _extract_first_float(r"(?:velocity|v1|at)\s*(?:of|=)?\s*([0-9.]+)\s*m/s", low, 6.1)
+        v1 = v1_val if v1_val is not None else 6.1
         h1 = _extract_first_float(r"([0-9.]+)\s*(m|cm|mm)\s*depth", low)
         if h1 is None:
             h1 = _extract_first_float(r"depth\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low)
         q = _extract_first_float(r"([0-9.]+)\s*m(?:\^3|3)/s", low)
         w = _extract_first_float(r"([0-9.]+)\s*m\s*wide", low)
         if w is None:
-            w = _extract_first_float(r"width\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low, 6.1) or 6.1
+            w_val = _extract_first_float(r"width\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low, 6.1)
+            w = w_val if w_val is not None else 6.1
         return ParsedPhysicsQuery(
             family="hydraulic_jump",
             confidence=0.95,
-            assumptions={"steady": True, "inviscid": False, "irreversible_jump": True},
+            assumptions={"steady": True, "incompressible": True, "inviscid": False, "irreversible_jump": True},
             params={"width": w, "v1": v1, "h1": h1 if h1 is not None else (0.305 if q is None else None), "discharge": q},
             concept_twist="Hydraulic jump dissipates mechanical head hj = (h2-h1)³/(4h1h2) via turbulent rollers; only momentum is conserved.",
             broken_shortcut="Equating upstream & downstream specific energy (Es1 = Es2), which overpredicts subcritical depth h2.",
@@ -181,11 +217,12 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             d2 = float(m_pair.group(3)) * (1e-3 if (m_pair.group(4) or "").lower() == "mm" else 1.0)
             if d2 <= d1:
                 d1, d2 = 0.10, 0.20
-        v1 = _extract_first_float(r"([0-9.]+)\s*m/s", low, 4.0) or 4.0
+        v1_val = _extract_first_float(r"([0-9.]+)\s*m/s", low, 4.0)
+        v1 = v1_val if v1_val is not None else 4.0
         return ParsedPhysicsQuery(
             family="sudden_expansion",
             confidence=0.93,
-            assumptions={"steady": True, "inviscid": False, "irreversible_jump": True},
+            assumptions={"steady": True, "incompressible": True, "inviscid": False, "irreversible_jump": True},
             params={"D1": d1, "D2": d2, "V1": v1},
             concept_twist="Annular corner pressure remains ~p1 during jet separation; turbulent mixing dissipates (V1-V2)²/2g.",
             broken_shortcut="Ideal Bernoulli Δp = ½ρ(V1²-V2²), overestimating downstream pressure recovery.",
@@ -196,12 +233,14 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
     # 7. Accelerating / Free-fall tank (Ch 2.9)
     if any(k in low for k in ["free fall", "free-fall", "falling", "accelerating tank", "orifice", "leak"]):
         is_ff = any(k in low for k in ["free fall", "free-fall", "falling"])
-        ax = _extract_first_float(r"ax\s*=\s*([-0-9.]+)", low, 0.0 if is_ff else 3.0) or (0.0 if is_ff else 3.0)
-        az = -9.81 if is_ff else (_extract_first_float(r"az\s*=\s*([-0-9.]+)", low, 0.0) or 0.0)
+        ax_val = _extract_first_float(r"ax\s*=\s*([-0-9.]+)", low, 0.0 if is_ff else 3.0)
+        ax = ax_val if ax_val is not None else (0.0 if is_ff else 3.0)
+        az_val = _extract_first_float(r"az\s*=\s*([-0-9.]+)", low, 0.0)
+        az = -9.81 if is_ff else (az_val if az_val is not None else 0.0)
         return ParsedPhysicsQuery(
             family="accelerating_tank",
             confidence=0.91,
-            assumptions={"steady": True, "inertial_frame": False},
+            assumptions={"steady": True, "incompressible": True, "inertial_frame": False},
             params={"ax": ax, "az": az, "h0": 0.50},
             concept_twist="Non-inertial gravity g_eff = g + az vanishes in free fall (dp/dz = 0), so liquid remains horizontal and stops leaking!",
             broken_shortcut="Using static Torricelli √(2gh) in a freely falling frame.",
@@ -214,7 +253,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
         return ParsedPhysicsQuery(
             family="two_layer_poiseuille",
             confidence=0.92,
-            assumptions={"steady": True, "inviscid": False, "irrotational": False},
+            assumptions={"steady": True, "incompressible": True, "inviscid": False, "irrotational": False},
             params={"mu1": 0.005, "mu2": 0.001, "dp_dx": -1000.0},
             concept_twist="Interface enforces shear stress continuity μ1(du1/dy) = μ2(du2/dy), producing a slope kink and peak inside the less viscous layer.",
             broken_shortcut="Assuming du1/dy = du2/dy across the interface or u_max at geometric centerline y = 0.",
@@ -228,7 +267,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
         return ParsedPhysicsQuery(
             family="couette_poiseuille",
             confidence=0.90,
-            assumptions={"steady": True, "inviscid": False, "irrotational": False, "adverse_pressure_gradient": p_val < 0},
+            assumptions={"steady": True, "incompressible": True, "inviscid": False, "irrotational": False, "adverse_pressure_gradient": p_val < 0},
             params={"P": p_val},
             concept_twist="Adverse pressure gradient P < -1 triggers backflow near the stationary wall; P = -3 yields zero net discharge Q = 0.",
             broken_shortcut="Neglecting opposing pressure gradient curvature in plate-driven shear flow.",
@@ -238,13 +277,24 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
 
     # 10. Wall slip & Herschel-Bulkley / non-Newtonian
     if any(k in low for k in ["slip", "herschel", "bingham", "yield stress", "non-newtonian", "shear thinning", "plug"]):
-        tau_y = _extract_first_float(r"yield[^0-9]*([0-9.]+)", low, 3.0 if "plug" in low or "bingham" in low or "herschel" in low else 0.0) or 0.0
-        ls = _extract_first_float(r"slip[^0-9]*([0-9.]+)\s*(m|cm|mm)?", low, 0.00025 if "slip" in low else 0.0) or 0.0
+        tau_y_def = 3.0 if "plug" in low or "bingham" in low or "herschel" in low else 0.0
+        tau_y_val = _extract_first_float(r"yield[^0-9]*([0-9.]+)", low, tau_y_def)
+        tau_y = tau_y_val if tau_y_val is not None else tau_y_def
+        ls_def = 0.00025 if "slip" in low else 0.0
+        ls_val = _extract_first_float(r"slip[^0-9]*([0-9.]+)\s*(m|cm|mm)?", low, ls_def)
+        ls = ls_val if ls_val is not None else ls_def
         n_val = 0.65 if ("thinning" in low or "herschel" in low) else 1.0
         return ParsedPhysicsQuery(
             family="slip_herschel_bulkley",
             confidence=0.90,
-            assumptions={"steady": True, "inviscid": False, "no_slip": ls == 0.0, "newtonian": n_val == 1.0 and tau_y == 0.0},
+            assumptions={
+                "steady": True,
+                "incompressible": True,
+                "inviscid": False,
+                "irrotational": False,
+                "no_slip": ls == 0.0,
+                "newtonian": n_val == 1.0 and tau_y == 0.0,
+            },
             params={"n": n_val, "tau_y": tau_y, "slip_length": ls},
             concept_twist="Navier wall slip boosts discharge by 1+3*l_s/H while yield stress τ_y creates an unyielded solid-like plug core |τ| ≤ τ_y.",
             broken_shortcut="Standard no-slip Newtonian Hagen-Poiseuille parabolic law.",
@@ -254,11 +304,12 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
 
     # 11. Boundary layer separation / Falkner-Skan
     if any(k in low for k in ["falkner", "blasius"]):
-        beta_val = 0.0 if ("blasius" in low or "flat plate" in low) else (_extract_first_float(r"beta\s*=\s*([-0-9.]+)", low, -0.15) or -0.15)
+        beta_ext = _extract_first_float(r"beta\s*=\s*([-0-9.]+)", low, -0.15)
+        beta_val = 0.0 if ("blasius" in low or "flat plate" in low) else (beta_ext if beta_ext is not None else -0.15)
         return ParsedPhysicsQuery(
             family="falkner_skan",
             confidence=0.93,
-            assumptions={"steady": True, "inviscid": False, "irrotational": False, "adverse_pressure_gradient": beta_val < 0},
+            assumptions={"steady": True, "incompressible": True, "inviscid": False, "irrotational": False, "adverse_pressure_gradient": beta_val < 0},
             params={"beta": max(-0.198, min(1.5, beta_val))},
             concept_twist="Exact similarity ODE f''' + f f'' + β(1 - (f')²) = 0: adverse β < 0 pushes wall curvature positive and approaches separation at β ≈ -0.1988.",
             broken_shortcut="Using Blasius flat-plate friction Cf·√Rex = 0.6641 when β ≠ 0 (non-zero streamwise pressure gradient).",
@@ -270,7 +321,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
         return ParsedPhysicsQuery(
             family="bl_separation",
             confidence=0.92,
-            assumptions={"steady": True, "inviscid": False, "irrotational": False, "adverse_pressure_gradient": True},
+            assumptions={"steady": True, "incompressible": True, "inviscid": False, "irrotational": False, "adverse_pressure_gradient": True},
             params={"lambda_pg": -14.0 if "backflow" in low or "separat" in low else -6.0},
             concept_twist="Adverse dp/dx > 0 enforces positive wall curvature ∂²u/∂y²|w > 0 and an interior inflection point; detachment hits at τ_w = 0.",
             broken_shortcut="Assuming potential Cp around cylinder rear or treating d²u/dy²|w = 0 as separation.",
@@ -293,11 +344,12 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             if "cylinder" in low or "circle" in low:
                 obstacles.append(GeometryPrimitive(type="circle", x=0.22, y=0.50, r=0.11))
             obstacles.append(GeometryPrimitive(type="rect", x0=0.42, y0=0.42, x1=0.52, y1=0.58))
-        re_val = _extract_first_float(r"re\s*(?:=|of)?\s*([0-9.]+)", low, 105.0) or 105.0
+        re_ext = _extract_first_float(r"re\s*(?:=|of)?\s*([0-9.]+)", low, 105.0)
+        re_val = re_ext if re_ext is not None else 105.0
         return ParsedPhysicsQuery(
             family="lbm_tunnel",
             confidence=0.88,
-            assumptions={"steady": False, "inviscid": False, "irrotational": False, "adverse_pressure_gradient": True},
+            assumptions={"steady": False, "incompressible": True, "inviscid": False, "irrotational": False, "adverse_pressure_gradient": True},
             params={"preset": preset, "reynolds": max(25.0, min(160.0, re_val))},
             obstacles=obstacles,
             concept_twist="Bluff body wakes shed alternating Kármán vortices above critical Re unless stabilized by a wake splitter baffle.",
@@ -310,7 +362,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
     return ParsedPhysicsQuery(
         family="unsupported_3d",
         confidence=0.3,
-        assumptions={"steady": True, "inviscid": True, "irrotational": True},
+        assumptions={"steady": True, "incompressible": False, "inviscid": False, "irrotational": False},
         params={},
         concept_twist="Could not match an exact implemented 1D/2D physics family from phrasing alone.",
         broken_shortcut="Avoid forcing an arbitrary diagram; refine input with equations u=..., v=... or choose a physical scenario.",

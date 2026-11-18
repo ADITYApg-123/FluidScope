@@ -1,0 +1,111 @@
+:root,
+[data-theme="light"] {
+  --bg-chassis: #F7F6F2;
+  --bg-bay: #FFFFFF;
+  --bg-sub: #EFECE5;
+  --bg-input: #FAF9F6;
+  --bg-canvas: #FCFBF9;
+  --bg-callout: #FFFBEB;
+
+  --seam: #DFDBD2;
+  --seam-bright: #C6C0B4;
+
+  --ink-primary: #111827;
+  --ink-secondary: #374151;
+  --ink-muted: #5B6472;
+  --ink-inverse: #FFFFFF;
+
+  --accent: #1D4ED8;
+  --accent-soft: #EFF6FF;
+  --accent-border: #BFDBFE;
+
+  --teal: #0F766E;
+  --teal-soft: #F0FDFA;
+
+  --amber: #B45309;
+  --amber-bright: #D97706;
+  --amber-soft: #FEF3C7;
+  --amber-border: #FCD34D;
+
+  --coral: #DC2626;
+  --coral-soft: #FEF2F2;
+  --coral-border: #FECACA;
+  --coral-ink: #991B1B;
+
+  --ok-green: #15803D;
+  --ok-soft: #DCFCE7;
+  --ok-border: #86EFAC;
+
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.05);
+  --shadow-md: 0 6px 18px rgba(17, 24, 39, 0.07);
+
+  --font-display: "Space Grotesk", "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", "Consolas", "Courier New", monospace;
+}
+
+[data-theme="dark"] {
+  --bg-chassis: #0D1117;
+  --bg-bay: #161B22;
+  --bg-sub: #21262D;
+  --bg-input: #0D1117;
+  --bg-canvas: #090D12;
+  --bg-callout: #1C1917;
+
+  --seam: #30363D;
+  --seam-bright: #484F58;
+
+  --ink-primary: #F0F6FC;
+  --ink-secondary: #C9D1D9;
+  --ink-muted: #8B949E;
+  --ink-inverse: #0D1117;
+
+  --accent: #58A6FF;
+  --accent-soft: rgba(88, 166, 255, 0.14);
+  --accent-border: rgba(88, 166, 255, 0.35);
+
+  --teal: #2DD4BF;
+  --teal-soft: rgba(45, 212, 191, 0.12);
+
+  --amber: #F59E0B;
+  --amber-bright: #FBBF24;
+  --amber-soft: rgba(245, 158, 11, 0.14);
+  --amber-border: rgba(245, 158, 11, 0.38);
+
+  --coral: #F87171;
+  --coral-soft: rgba(248, 113, 113, 0.14);
+  --coral-border: rgba(248, 113, 113, 0.38);
+  --coral-ink: #FCA5A5;
+
+  --ok-green: #3FB950;
+  --ok-soft: rgba(63, 185, 80, 0.14);
+  --ok-border: rgba(63, 185, 80, 0.38);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100%;
+  background: var(--bg-chassis);
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-font-smoothing: antialiased;
+}
+
+.bench-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}

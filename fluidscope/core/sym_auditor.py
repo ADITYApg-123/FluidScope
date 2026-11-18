@@ -88,10 +88,54 @@ def _build_symbolic_lhs_rhs(state: AssumptionState) -> dict[str, str]:
     }
 
 
-def audit_assumptions(raw_state: dict[str, Any] | AssumptionState | None = None) -> dict[str, Any]:
+def _build_equation_contexts(sym_eqs: dict[str, str]) -> dict[str, dict[str, str]]:
+    """Build normalized textbook equation contexts for header display across labs."""
+    return {
+        "ns_x": {
+            "id": "ns_x",
+            "title": "2D Navier–Stokes / Euler (Streamwise x)",
+            "tex": sym_eqs["momentum_x_tex"],
+            "subtitle": "Term-by-term local inertia, convective inertia, pressure, viscous, and frame balance (Ch. 4 & Ch. 8).",
+        },
+        "radial_euler": {
+            "id": "radial_euler",
+            "title": "Radial Euler & Crocco Equation (Ch. 4.5, Eq. 4.43)",
+            "tex": r"\frac{\partial p}{\partial r} = \rho \frac{v_\theta^2}{r}, \qquad \frac{\partial H}{\partial n} = \frac{V}{g}\,\Omega_z",
+            "subtitle": "Outward pressure rise balances centrifugal acceleration, while total head H varies across streamlines iff Ωz ≠ 0.",
+        },
+        "specific_force": {
+            "id": "specific_force",
+            "title": "Specific Energy vs. Specific Force (Ch. 11.5 & 12.4)",
+            "tex": r"E_s = h + \frac{q^2}{2gh^2}, \qquad F_s = \frac{q^2}{gh} + \frac{h^2}{2} = \text{const}",
+            "subtitle": "Across hydraulic jumps and sudden expansions, integral momentum (Fs) holds while mechanical energy dissipates.",
+        },
+        "frame_g_eff": {
+            "id": "frame_g_eff",
+            "title": "Non-Inertial Frame Hydrostatics (Ch. 2.9, Eq. 2.86)",
+            "tex": r"\nabla p = \rho\left(\mathbf{g} - \mathbf{a}_{\text{frame}}\right), \qquad \tan\theta = \frac{a_x}{g + a_z}",
+            "subtitle": "Effective gravity g_eff = g + az drops to zero in free fall (az = -g), flattening the meniscus and halting efflux.",
+        },
+        "boundary_layer": {
+            "id": "boundary_layer",
+            "title": "Prandtl Boundary Layer & Wall Curvature (Ch. 9.6, Eq. 9.41–9.42)",
+            "tex": r"u\frac{\partial u}{\partial x} + v\frac{\partial u}{\partial y} = -\frac{1}{\rho}\frac{dp}{dx} + \nu\frac{\partial^2 u}{\partial y^2}, \qquad \left.\mu\frac{\partial^2 u}{\partial y^2}\right|_w = \frac{dp}{dx}",
+            "subtitle": "Adverse pressure gradient dp/dx > 0 enforces positive wall curvature and an interior inflection point ahead of separation.",
+        },
+    }
+
+
+def audit_assumptions(
+    raw_state: dict[str, Any] | AssumptionState | None = None,
+    equation_context: str | None = None,
+) -> dict[str, Any]:
     """Return structured term-by-term equation audit and Bernoulli / boundary rules."""
+    ctx_key = equation_context
+    if ctx_key is None and isinstance(raw_state, dict):
+        ctx_key = raw_state.get("equation_context")
     state = raw_state if isinstance(raw_state, AssumptionState) else AssumptionState.from_dict(raw_state)
     sym_eqs = _build_symbolic_lhs_rhs(state)
+    eq_contexts = _build_equation_contexts(sym_eqs)
+    active_ctx_id = ctx_key if isinstance(ctx_key, str) and ctx_key in eq_contexts else "ns_x"
 
     ns_terms = [
         {
@@ -154,6 +198,9 @@ def audit_assumptions(raw_state: dict[str, Any] | AssumptionState | None = None)
         },
     ]
 
+    for term in ns_terms:
+        term["highlight"] = "dim" if not term["active"] else ("alert" if term["role"] == "coral" else "active")
+
     bernoulli_along_streamline = (
         state.steady and state.incompressible and state.inviscid and state.inertial_frame and not state.irreversible_jump
     )
@@ -206,4 +253,6 @@ def audit_assumptions(raw_state: dict[str, Any] | AssumptionState | None = None)
             ),
         },
         "warnings": warnings,
+        "equation_context": eq_contexts[active_ctx_id],
+        "equation_contexts": eq_contexts,
     }

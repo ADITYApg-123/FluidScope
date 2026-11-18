@@ -47,46 +47,62 @@
     <main class="workbench-view hidden" id="workbenchView">
       <!-- Unified Physics Labs Selector Strip -->
       <div class="lab-selector-strip hidden" id="labSelectorStrip" role="navigation" aria-label="Physics Lab Modules">
-        <div class="lab-pill-group">
+        <div class="lab-category-tabs" role="tablist" aria-label="Physics Lab Categories">
+          <button type="button" class="lab-cat-tab active" data-lab-cat="kinematics" role="tab" aria-selected="true">Kinematics &amp; Vortex</button>
+          <button type="button" class="lab-cat-tab" data-lab-cat="viscous" role="tab" aria-selected="false">Viscous &amp; BL</button>
+          <button type="button" class="lab-cat-tab" data-lab-cat="conservation" role="tab" aria-selected="false">Conservation &amp; LBM</button>
+        </div>
+        <div class="lab-pill-group is-active-group" data-lab-group="kinematics">
           <span class="lab-group-label">KINEMATICS &amp; VORTEX</span>
-          <button class="lab-pill" data-bay="02" data-sub="kinematics">Equation Flow</button>
-          <button class="lab-pill" data-bay="02" data-sub="vortex">Vortex Trap</button>
-          <button class="lab-pill" data-bay="02" data-sub="vessel">Rotating Vessel</button>
-          <button class="lab-pill" data-bay="02" data-sub="potential">Magnus Cylinder</button>
+          <button type="button" class="lab-pill" data-bay="02" data-sub="kinematics">Equation Flow</button>
+          <button type="button" class="lab-pill" data-bay="02" data-sub="vortex">Vortex Trap</button>
+          <button type="button" class="lab-pill" data-bay="02" data-sub="vessel">Rotating Vessel</button>
+          <button type="button" class="lab-pill" data-bay="02" data-sub="potential">Magnus Cylinder</button>
         </div>
-        <div class="lab-pill-group">
+        <div class="lab-pill-group" data-lab-group="viscous">
           <span class="lab-group-label">VISCOUS &amp; BL</span>
-          <button class="lab-pill" data-bay="03" data-sub="separation">BL Separation</button>
-          <button class="lab-pill" data-bay="03" data-sub="couette">Couette-Poiseuille</button>
-          <button class="lab-pill" data-bay="03" data-sub="twolayer">Two-Layer (Ex 8.2)</button>
-          <button class="lab-pill" data-bay="03" data-sub="slip_hb">Slip &amp; Herschel-Bulkley</button>
+          <button type="button" class="lab-pill" data-bay="03" data-sub="separation">BL Separation</button>
+          <button type="button" class="lab-pill" data-bay="03" data-sub="couette">Couette-Poiseuille</button>
+          <button type="button" class="lab-pill" data-bay="03" data-sub="twolayer">Two-Layer (Ex 8.2)</button>
+          <button type="button" class="lab-pill" data-bay="03" data-sub="slip_hb">Slip &amp; Herschel-Bulkley</button>
         </div>
-        <div class="lab-pill-group">
+        <div class="lab-pill-group" data-lab-group="conservation">
           <span class="lab-group-label">CONSERVATION &amp; LBM</span>
-          <button class="lab-pill" data-bay="04" data-sub="lbm">2D LBM Tunnel</button>
-          <button class="lab-pill" data-bay="04" data-sub="jump">Hydraulic Jump</button>
-          <button class="lab-pill" data-bay="04" data-sub="expansion">Pipe Expansion</button>
-          <button class="lab-pill" data-bay="04" data-sub="tank">Accel / Free-Fall Tank</button>
+          <button type="button" class="lab-pill" data-bay="04" data-sub="lbm">2D LBM Tunnel</button>
+          <button type="button" class="lab-pill" data-bay="04" data-sub="jump">Hydraulic Jump</button>
+          <button type="button" class="lab-pill" data-bay="04" data-sub="expansion">Pipe Expansion</button>
+          <button type="button" class="lab-pill" data-bay="04" data-sub="tank">Accel / Free-Fall Tank</button>
+        </div>
+        <div class="lab-nav-actions">
+          <button type="button" class="btn-machined btn-xs" id="btnPrevLab" title="Previous Lab">&lsaquo; Prev</button>
+          <button type="button" class="btn-machined btn-xs" id="btnNextLab" title="Next Lab">Next &rsaquo;</button>
+          <button type="button" class="btn-machined btn-xs" id="btnOpenCoach" title="Ask Solver-Grounded Doubt Coach">Ask Coach</button>
         </div>
       </div>
 
-      <div class="cockpit-grid">
+      <div class="cockpit-grid" id="cockpitGrid">
         <!-- Left Interactive Control & Assumption Rail -->
         <aside class="control-rail" id="controlRail">
           <div class="rail-scroll">
             <div id="bayControls"></div>
 
             <!-- Interactive Assumption Switch Matrix -->
-            <section class="panel-bay">
-              <div class="bay-header assumption-accordion-header" id="assumptionAccordionBtn">
+            <section class="panel-bay assumption-panel" id="assumptionPanel">
+              <button type="button" class="bay-header assumption-accordion-header" id="assumptionAccordionBtn" aria-expanded="false" aria-controls="assumptionAccordionBody">
                 <span>Active Physics Assumptions</span>
-                <span class="tag-mono" id="bernoulliVerdictBadge">Auditing...</span>
+                <span class="assumption-header-badges">
+                  <span class="tag-mono" id="assumptionSummaryPill">Audit</span>
+                  <span class="tag-mono" id="bernoulliVerdictBadge">Auditing...</span>
+                </span>
+              </button>
+              <div class="assumption-derived-row" id="assumptionDerivedRow"></div>
+              <div class="assumption-accordion-body" id="assumptionAccordionBody">
+                <div class="assumption-hint">
+                  Toggle switches to strike terms in the Navier–Stokes equation and perturb compatible live labs.
+                </div>
+                <div class="rocker-grid" id="assumptionRockers"></div>
+                <div class="warning-feed" id="assumptionWarnings"></div>
               </div>
-              <div style="font-size:11.5px;color:var(--ink-muted);line-height:1.4;">
-                Toggle switches to strike terms in the Navier–Stokes equation and perturb compatible live labs.
-              </div>
-              <div class="rocker-grid" id="assumptionRockers"></div>
-              <div class="warning-feed" id="assumptionWarnings"></div>
             </section>
           </div>
         </aside>
@@ -117,6 +133,7 @@
                 <span id="primaryTitle">Flow Field Visualization</span>
                 <div class="titlebar-right">
                   <div class="legend-strip" id="primaryLegend"></div>
+                  <button type="button" class="btn-machined btn-xs" id="flowPlayPauseBtn" aria-pressed="false" title="Pause / Resume Motion">Pause</button>
                 </div>
               </div>
               <div class="canvas-stage-wrap">
@@ -137,6 +154,10 @@
                 <canvas id="plotCanvas"></canvas>
               </div>
               <div class="probe-hud" id="plotProbeHud">Hover over the curve to read exact values</div>
+              <div class="plot-table-bar">
+                <button type="button" class="btn-machined btn-xs" id="plotDataTableToggle" aria-expanded="false" aria-controls="plotDataTableWrap">View Plotted Data Table</button>
+              </div>
+              <div class="plot-table-wrap hidden" id="plotDataTableWrap" role="region" aria-label="Plotted Curve Data Table"></div>
             </div>
           </div>
 
@@ -154,6 +175,7 @@
           </section>
         </section>
       </div>
+      <aside id="coachDrawerHost" class="coach-drawer-host" aria-hidden="true" aria-label="Solver-Grounded Doubt Coach"></aside>
     </main>
   </div>
 

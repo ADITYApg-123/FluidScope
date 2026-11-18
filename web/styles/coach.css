@@ -1,0 +1,30 @@
+/* Rich Doubt Coach Card & Slide-Over Drawer Host */
+.coach-answer-body p {
+  margin-bottom: 6px;
+}
+
+.coach-answer-body p:last-child {
+  margin-bottom: 0;
+}
+
+.coach-drawer-host {
+  position: fixed;
+  top: 56px;
+  right: 16px;
+  bottom: 16px;
+  width: min(400px, calc(100vw - 24px));
+  z-index: 50;
+  background: var(--bg-bay);
+  border: 1px solid var(--seam-bright);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.coach-drawer-host[aria-hidden="true"] {
+  display: none;
+}

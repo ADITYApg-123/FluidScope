@@ -282,6 +282,10 @@ def analyze_kinematics(
     div_fn = _lambdify_2d(div_expr)
     ax_fn = _lambdify_2d(ax_tot)
     ay_fn = _lambdify_2d(ay_tot)
+    ax_local_fn = _lambdify_2d(ax_local)
+    ax_conv_fn = _lambdify_2d(ax_conv)
+    ay_local_fn = _lambdify_2d(ay_local)
+    ay_conv_fn = _lambdify_2d(ay_conv)
 
     # Whole field grid at t_eval for quiver/heatmap & mouse hover probe interpolation
     xmin, xmax, ymin, ymax = bounds
@@ -392,6 +396,10 @@ def analyze_kinematics(
     pt_div = _safe_eval_point(div_fn, x0, y0, t_eval)
     pt_ax = _safe_eval_point(ax_fn, x0, y0, t_eval)
     pt_ay = _safe_eval_point(ay_fn, x0, y0, t_eval)
+    pt_ax_local = _safe_eval_point(ax_local_fn, x0, y0, t_eval)
+    pt_ax_conv = _safe_eval_point(ax_conv_fn, x0, y0, t_eval)
+    pt_ay_local = _safe_eval_point(ay_local_fn, x0, y0, t_eval)
+    pt_ay_conv = _safe_eval_point(ay_conv_fn, x0, y0, t_eval)
 
     return {
         "expressions": {
@@ -405,6 +413,10 @@ def analyze_kinematics(
             "shear_rate_tex": sp.latex(shear_expr),
             "ax_tex": sp.latex(ax_tot),
             "ay_tex": sp.latex(ay_tot),
+            "ax_local_tex": sp.latex(ax_local),
+            "ax_conv_tex": sp.latex(ax_conv),
+            "ay_local_tex": sp.latex(ay_local),
+            "ay_conv_tex": sp.latex(ay_conv),
         },
         "classification": {
             "steady": bool(is_steady),
@@ -424,6 +436,10 @@ def analyze_kinematics(
             "divergence": pt_div,
             "ax": pt_ax,
             "ay": pt_ay,
+            "ax_local": pt_ax_local,
+            "ax_convective": pt_ax_conv,
+            "ay_local": pt_ay_local,
+            "ay_convective": pt_ay_conv,
         },
         "curves": {
             "streamline": streamline_pts,

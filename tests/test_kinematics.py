@@ -115,3 +115,37 @@ def test_forced_vortex_stokes_theorem_and_free_vortex_irrotational():
     assert free_v["classification"]["irrotational"] is True
     assert free_v["stokes_check"]["circulation_line"] == pytest.approx(2.0 * math.pi, rel=1e-3)
 
+
+def test_acceleration_local_convective_split_example_3_10_and_steady():
+    """Verify additive local vs convective acceleration split and TeX fields."""
+    res = analyze_kinematics(
+        u_str="x / (t + t0)",
+        v_str="v0",
+        params={"t0": 1.0, "v0": 1.0},
+        x0=1.0,
+        y0=0.0,
+        t0=1.0,
+        t_eval=2.0,
+        bounds=(-1.0, 8.0, -1.0, 4.0),
+    )
+    probe = res["point_probe"]
+    exprs = res["expressions"]
+
+    # Ex 3.10 at x=1, t0=1, t=2: du/dt = -1/9, u*du/dx = +1/9, sum ax = 0
+    assert probe["ax_local"] == pytest.approx(-1.0 / 9.0, abs=1e-9)
+    assert probe["ax_convective"] == pytest.approx(1.0 / 9.0, abs=1e-9)
+    assert probe["ay_local"] == pytest.approx(0.0, abs=1e-9)
+    assert probe["ay_convective"] == pytest.approx(0.0, abs=1e-9)
+    assert probe["ax_local"] + probe["ax_convective"] == pytest.approx(probe["ax"], abs=1e-9)
+    assert probe["ay_local"] + probe["ay_convective"] == pytest.approx(probe["ay"], abs=1e-9)
+    assert isinstance(exprs["ax_local_tex"], str) and len(exprs["ax_local_tex"]) > 0
+    assert isinstance(exprs["ax_conv_tex"], str) and len(exprs["ax_conv_tex"]) > 0
+
+    # Steady curved flow u=1, v=0.5*x: ay_local = 0, ay_convective = 0.5
+    steady = analyze_kinematics(u_str="1", v_str="0.5 * x", x0=0.0, y0=0.0, t0=0.0, t_eval=2.0)
+    sp_probe = steady["point_probe"]
+    assert sp_probe["ax_local"] == pytest.approx(0.0, abs=1e-9)
+    assert sp_probe["ay_local"] == pytest.approx(0.0, abs=1e-9)
+    assert sp_probe["ay_convective"] == pytest.approx(0.5, abs=1e-9)
+    assert sp_probe["ay_local"] + sp_probe["ay_convective"] == pytest.approx(sp_probe["ay"], abs=1e-9)
+
