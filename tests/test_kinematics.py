@@ -1,6 +1,8 @@
 """Tests for Step 2: Equation-driven 2D kinematics engine against Som-Biswas-Chakraborty Ch. 3."""
 
 import math
+import warnings
+import numpy as np
 import pytest
 from fluidscope.core.kinematics import analyze_kinematics, safe_parse_velocity
 
@@ -206,4 +208,116 @@ def test_stokes_check_flags_point_vortex_singularity_inside_disk():
         loop_radius=0.8,
     )
     assert ex310["stokes_check"]["singularity_suspected"] is False
+
+
+def test_stokes_check_flags_weak_and_boundary_irrotational_point_vortex():
+    weak_offcenter = analyze_kinematics(
+        u_str="-0.005*y / (x^2 + y^2)",
+        v_str="0.005*x / (x^2 + y^2)",
+        x0=1.5,
+        y0=0.5,
+        t0=0.0,
+        t_eval=0.5,
+        loop_center=(0.15, 0.1),
+        loop_radius=0.6,
+    )
+    assert weak_offcenter["classification"]["irrotational"] is True
+    assert weak_offcenter["stokes_check"]["circulation_line"] == pytest.approx(
+        2.0 * math.pi * 0.005, rel=1e-3
+    )
+    assert weak_offcenter["stokes_check"]["circulation_area_vorticity"] == pytest.approx(0.0, abs=1e-12)
+    assert weak_offcenter["stokes_check"]["singularity_suspected"] is True
+
+    weak_on_boundary = analyze_kinematics(
+        u_str="-0.005*y / (x^2 + y^2)",
+        v_str="0.005*x / (x^2 + y^2)",
+        x0=1.5,
+        y0=0.5,
+        t0=0.0,
+        t_eval=0.5,
+        loop_center=(0.6, 0.0),
+        loop_radius=0.6,
+    )
+    assert weak_on_boundary["stokes_check"]["singularity_suspected"] is True
+
+    perimeter_pole = analyze_kinematics(
+        u_str="1 / (x - 1)",
+        v_str="0",
+        x0=-0.5,
+        y0=0.0,
+        t0=0.0,
+        t_eval=0.5,
+        loop_center=(0.0, 0.0),
+        loop_radius=1.0,
+    )
+    assert perimeter_pole["stokes_check"]["circulation_line"] is None
+    assert perimeter_pole["stokes_check"]["singularity_suspected"] is True
+
+    near_outside = analyze_kinematics(
+        u_str="-y / (x^2 + y^2)",
+        v_str="x / (x^2 + y^2)",
+        x0=1.5,
+        y0=0.0,
+        t0=0.0,
+        t_eval=0.5,
+        loop_center=(0.70, 0.0),
+        loop_radius=0.6,
+    )
+    assert near_outside["stokes_check"]["singularity_suspected"] is False
+
+    reg_offcenter = analyze_kinematics(
+        u_str="-2*y / (x^2 + y^2 + 0.04)",
+        v_str="2*x / (x^2 + y^2 + 0.04)",
+        x0=1.5,
+        y0=0.5,
+        t0=0.0,
+        t_eval=0.5,
+        loop_center=(1.2, 0.8),
+        loop_radius=0.65,
+    )
+    assert reg_offcenter["stokes_check"]["singularity_suspected"] is False
+
+    reg_centered = analyze_kinematics(
+        u_str="-2*y / (x^2 + y^2 + 0.04)",
+        v_str="2*x / (x^2 + y^2 + 0.04)",
+        x0=1.5,
+        y0=0.5,
+        t0=0.0,
+        t_eval=0.5,
+        loop_center=(0.0, 0.0),
+        loop_radius=0.65,
+    )
+    assert reg_centered["stokes_check"]["singularity_suspected"] is False
+
+
+def test_complex_imaginary_velocity_expressions_rejected_without_warnings():
+    complex_warn_cls = (
+        np.exceptions.ComplexWarning
+        if hasattr(np, "exceptions") and hasattr(np.exceptions, "ComplexWarning")
+        else Warning
+    )
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        for u_expr, v_expr in [
+            ("sqrt(-1)*x", "0"),
+            ("(-1)^0.5 * x", "0"),
+            ("sqrt(-x^2 - 1)", "0"),
+            ("log(-1)*x", "0"),
+        ]:
+            with pytest.raises(ValueError):
+                safe_parse_velocity(u_expr, None)
+            with pytest.raises(ValueError):
+                analyze_kinematics(u_expr, v_expr)
+
+        complex_warnings = [
+            w
+            for w in captured
+            if "ComplexWarning" in w.category.__name__ or (complex_warn_cls is not Warning and issubclass(w.category, complex_warn_cls))
+        ]
+        assert complex_warnings == []
+
+    real_restricted = analyze_kinematics("sqrt(x)", "y", x0=1.0, y0=1.0, t0=0.0, t_eval=0.5, bounds=(0.1, 4.0, -2.0, 4.0))
+    assert math.isfinite(real_restricted["point_probe"]["u"])
+    ex310 = analyze_kinematics("x / (t + t0)", "v0", params={"t0": 1.0, "v0": 1.0}, x0=1.0, y0=0.0, t0=1.0, t_eval=2.0)
+    assert ex310["classification"]["steady"] is False
 

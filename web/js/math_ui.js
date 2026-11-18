@@ -128,27 +128,32 @@ function tokenizeMathSegments(input) {
   const mathTokens = [];
   const pushMath = (tex, displayMode) => {
     const idx = mathTokens.length;
-    mathTokens.push(renderMathSegment(tex, displayMode));
+    mathTokens.push(renderMathSegment(tex.replaceAll("\u0000DOLLAR\u0000", "\\$"), displayMode));
     return `\u0000MATH_${idx}\u0000`;
   };
 
-  let tokenized = input.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => pushMath(tex, true));
+  let tokenized = input.replaceAll("\\$", "\u0000DOLLAR\u0000");
+  tokenized = tokenized.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => pushMath(tex, true));
   tokenized = tokenized.replace(/\\\[([\s\S]+?)\\\]/g, (_, tex) => pushMath(tex, true));
   tokenized = tokenized.replace(/\\\(([\s\S]+?)\\\)/g, (_, tex) => pushMath(tex, false));
-  tokenized = tokenized.replace(/(?<!\\)\$(?!\s)([^$\n]+?)(?<!\s)\$/g, (_, tex) => pushMath(tex, false));
-  tokenized = tokenized.replaceAll("\\$", "$");
+  tokenized = tokenized.replace(/(?<!\\)\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\d)/g, (full, tex) => {
+    if (/^\d[\d,.\s]*[-–—/+]?$/.test(tex.trim())) return full;
+    return pushMath(tex, false);
+  });
   return { tokenized, mathTokens };
 }
 
 function restoreMathSegments(html, mathTokens) {
-  return html.replace(/\u0000MATH_(\d+)\u0000/g, (_, idx) => mathTokens[Number(idx)] || "");
+  return html
+    .replace(/\u0000MATH_(\d+)\u0000/g, (_, idx) => mathTokens[Number(idx)] || "")
+    .replaceAll("\u0000DOLLAR\u0000", "&#36;");
 }
 
 /**
  * Format a single inline line with XSS-safe Markdown + KaTeX math ($...$, \(...\)) without <p> wrappers.
  */
 export function formatInlineRichText(text) {
-  const input = String(text ?? "").replaceAll("\u0000", "");
+  const input = String(text ?? "").replaceAll("\u0000", "").replace(/\r\n?/g, "\n");
   if (!input.trim()) return "";
   const { tokenized, mathTokens } = tokenizeMathSegments(input);
   return restoreMathSegments(formatInlineProse(tokenized), mathTokens);
@@ -159,7 +164,7 @@ export function formatInlineRichText(text) {
  * and inline/display KaTeX math ($...$, $$...$$, \(...\), \[...\]) safely (XSS-escaped first).
  */
 export function formatRichText(text) {
-  const input = String(text ?? "").replaceAll("\u0000", "");
+  const input = String(text ?? "").replaceAll("\u0000", "").replace(/\r\n?/g, "\n");
   if (!input.trim()) return "";
 
   const { tokenized, mathTokens } = tokenizeMathSegments(input);

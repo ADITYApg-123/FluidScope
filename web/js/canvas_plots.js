@@ -331,14 +331,14 @@ export class CurvePlotEngine {
 
     if (this._isDark()) {
       if (c === "#0072b2" || c === "#1d4ed8") return pal.primary;
-      if (c === "#d55e00" || c === "#d97706" || c === "#b45309") return pal.amber;
+      if (c === "#d55e00" || c === "#d97706" || c === "#b45309" || c === "#e6a23c") return pal.amber;
       if (c === "#b91c1c" || c === "#dc2626" || c === "#e05a47") return pal.coral;
       if (c === "#009e73" || c === "#15803d") return pal.teal;
       if (c === "#7c3aed") return pal.secondary;
       if (c === "#475569") return "#94A3B8";
     } else {
       if (c === "#d9e2ec" || c === "#f0f6fc") return "#0F172A";
-      if (c === "#e6a23c") return OKABE_ITO.blue;
+      if (c === "#e6a23c") return "#B45309";
       if (c === "#e05a47") return OKABE_ITO.red;
       if (c === "#58b368") return OKABE_ITO.green;
       if (c === "#9fb3c8" || c === "#7f8ea3") return "#475569";
@@ -351,7 +351,7 @@ export class CurvePlotEngine {
     const resolved = this._resolveColor(col, fallback || pal.labelInk);
     const c = String(resolved || "").toLowerCase().trim();
     if (this._isDark()) {
-      if (c === "#0072b2" || c === "#1d4ed8" || c === "#1e40af") return pal.primary;
+      if (c === "#0072b2" || c === "#1d4ed8" || c === "#1e40af" || c === "#005a8d") return pal.primary;
       if (c === "#d55e00" || c === "#d97706" || c === "#b45309" || c === "#92400e") return pal.amber;
       if (c === "#b91c1c" || c === "#dc2626" || c === "#e05a47" || c === "#991b1b") return pal.coral;
       if (c === "#009e73" || c === "#15803d" || c === "#166534") return pal.ok;
@@ -370,7 +370,7 @@ export class CurvePlotEngine {
       return "#166534";
     }
     if (c === "#dc2626" || c === "#b91c1c" || c === "#e05a47" || c === "#f87171") return "#991B1B";
-    if (c === "#0072b2" || c === "#1d4ed8" || c === "#58a6ff" || c === "#38bdf8") return "#005A8D";
+    if (c === "#0072b2" || c === "#1d4ed8" || c === "#58a6ff" || c === "#38bdf8" || c === "#56b4e9") return "#005A8D";
     if (c === "#7c3aed" || c === "#a78bfa") return "#5B21B6";
     if (c === "#2dd4bf") return "#0F766E";
     if (c === "#cbd5e1" || c === "#9ca3af" || c === "#94a3b8" || c === "#9fb3c8" || c === "#7f8ea3") {

@@ -665,7 +665,7 @@ export function renderStation03(ctx) {
                 unit: "dimless",
                 min: -0.198,
                 max: 1.0,
-                step: 0.01,
+                step: 0.001,
                 value: p.beta_fs,
                 dec: 3,
                 fullWidth: true,

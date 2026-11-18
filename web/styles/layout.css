@@ -1520,12 +1520,14 @@ button.assumption-accordion-header[aria-expanded="true"] > span:first-child::bef
   padding: 10px 12px;
   border-radius: 6px;
   min-width: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .diag-key {
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;

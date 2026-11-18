@@ -337,8 +337,9 @@ function resolveBadgeColor(col) {
   const c = String(col).toLowerCase().trim();
   if (c === "primary" || c === "#58a6ff" || c === "#1d4ed8") return "var(--accent)";
   if (c === "amber" || c === "#e6a23c") return "var(--amber)";
-  if (c === "coral" || c === "trap" || c === "#e05a47") return "var(--coral)";
+  if (c === "coral" || c === "trap" || c === "#e05a47" || c === "#b91c1c") return "var(--coral)";
   if (c === "ok" || c === "#58b368") return "var(--ok-green)";
+  if (c === "teal" || c === "var(--teal)" || c === "#0f766e" || c === "#2dd4bf") return "var(--teal)";
   if (c === "#d9e2ec" || c === "#f0f6fc") return "var(--ink-primary)";
   if (c === "#9fb3c8" || c === "#7f8ea3") return "var(--ink-secondary)";
   return col;
@@ -385,6 +386,9 @@ function resolveMetricTextColor(col) {
     c === "#0072b2"
   ) {
     return "var(--cobalt-ink)";
+  }
+  if (c === "teal" || c === "var(--teal)" || c === "#0f766e" || c === "#2dd4bf") {
+    return "var(--teal)";
   }
   if (c === "secondary" || c === "purple") return "var(--ink-primary)";
   if (c === "#d9e2ec" || c === "#f0f6fc") return "var(--ink-primary)";
@@ -820,26 +824,38 @@ const FAMILY_FALLBACK_META = {
 const VALID_PHYSICS_FAMILIES = new Set(Object.keys(FAMILY_FALLBACK_META));
 
 function clampObstacleCoord(v, lo, hi, def) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return def;
+  const parsed = v === null || v === undefined || v === "" ? def : Number(v);
+  const n = Number.isFinite(parsed) ? parsed : def;
   return Math.max(lo, Math.min(hi, n));
+}
+
+function roundObstacleCoord(n) {
+  return Math.round(n * 10000) / 10000;
 }
 
 function sanitizeObstacles(raw) {
   if (!Array.isArray(raw)) return [];
   const allowed = new Set(["circle", "rect", "splitter", "step"]);
   return raw
-    .filter((o) => o && typeof o === "object" && allowed.has(o.type))
-    .map((o) => ({
-      type: o.type,
-      x: clampObstacleCoord(o.x, 0.02, 0.95, 0.25),
-      y: clampObstacleCoord(o.y, 0.05, 0.95, 0.5),
-      r: clampObstacleCoord(o.r, 0.03, 0.35, 0.1),
-      x0: clampObstacleCoord(o.x0, 0.02, 0.95, 0.3),
-      y0: clampObstacleCoord(o.y0, 0.02, 0.95, 0.45),
-      x1: clampObstacleCoord(o.x1, 0.05, 0.98, 0.55),
-      y1: clampObstacleCoord(o.y1, 0.05, 0.98, 0.55),
-    }));
+    .map((o) => {
+      if (!o || typeof o !== "object") return null;
+      const t = String(o.type || "").toLowerCase();
+      if (!allowed.has(t)) return null;
+      if (t === "circle") {
+        return {
+          type: "circle",
+          x: roundObstacleCoord(clampObstacleCoord(o.x, 0.02, 0.95, 0.25)),
+          y: roundObstacleCoord(clampObstacleCoord(o.y, 0.05, 0.95, 0.5)),
+          r: roundObstacleCoord(clampObstacleCoord(o.r, 0.03, 0.35, 0.1)),
+        };
+      }
+      const x0 = roundObstacleCoord(clampObstacleCoord(o.x0, 0.02, 0.95, 0.3));
+      const y0 = roundObstacleCoord(clampObstacleCoord(o.y0, 0.02, 0.95, 0.45));
+      const x1 = roundObstacleCoord(clampObstacleCoord(o.x1, Math.max(0.05, x0 + 0.01), 0.98, 0.55));
+      const y1 = roundObstacleCoord(clampObstacleCoord(o.y1, Math.max(0.05, y0 + 0.01), 0.98, 0.55));
+      return { type: t, x0, y0, x1, y1 };
+    })
+    .filter(Boolean);
 }
 
 function buildParsedQueryFallback(eventPayload = {}) {

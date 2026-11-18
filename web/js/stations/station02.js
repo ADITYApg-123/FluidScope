@@ -110,10 +110,24 @@ function applyIncomingNavPayload(ctx) {
     if (Array.isArray(np.sources) && np.sources.length && (!Array.isArray(np.doublets) || !np.doublets.length)) {
       pp.presetMode = "halfbody";
       pp.source_m = finiteOr(np.sources[0]?.m, pp.source_m ?? 12.0);
+      pp.source_x = finiteOr(np.sources[0]?.x, -0.5);
+      pp.source_y = finiteOr(np.sources[0]?.y, 0.0);
+      pp.doublet_kappa = null;
       pp.gamma = 0.0;
     } else {
-      pp.gamma = finiteOr(np.gamma ?? np.vortices?.[0]?.gamma, pp.gamma);
-      pp.doublet_kappa = finiteOr(np.doublet_kappa ?? np.doublets?.[0]?.kappa, pp.doublet_kappa);
+      const hasExplicitGamma = np.gamma !== undefined;
+      const hasVorticesArr = Array.isArray(np.vortices);
+      pp.gamma = hasExplicitGamma
+        ? finiteOr(np.gamma, pp.gamma)
+        : hasVorticesArr
+        ? np.vortices.length
+          ? finiteOr(np.vortices[0]?.gamma, pp.gamma)
+          : 0.0
+        : pp.gamma;
+      const rawKappa = np.doublet_kappa ?? np.doublets?.[0]?.kappa;
+      pp.doublet_kappa = rawKappa !== undefined && rawKappa !== null ? finiteOr(rawKappa, null) : null;
+      pp.source_x = null;
+      pp.source_y = null;
       pp.presetMode = Math.abs(pp.gamma) < 1e-6 ? "dalembert" : "magnus";
     }
   }
@@ -401,8 +415,8 @@ function updateFormulaDirtyUI(kp) {
   if (formulaDirty) {
     btn.textContent = "Apply Edited u, v Equations";
     btn.style.boxShadow = "0 0 0 2px var(--amber-border)";
-    btn.style.borderColor = "var(--amber)";
-    btn.style.background = "var(--amber)";
+    btn.style.borderColor = "var(--amber-ink)";
+    btn.style.background = "var(--amber-ink)";
     if (badge) {
       badge.textContent = "Edited (Click Apply)";
       badge.style.display = "inline-block";
@@ -1106,7 +1120,18 @@ function renderBay02Controls(ctx) {
     `;
 
     const schedulePot = () => debouncedRun("bay02", () => runBay02(ctx), 120);
-    bindPairedControl({ idBase: "Uinf", obj: pp, key: "u_inf", dec: 1, clampMin: 0.2, clampMax: 15, onAfterChange: schedulePot });
+    bindPairedControl({
+      idBase: "Uinf",
+      obj: pp,
+      key: "u_inf",
+      dec: 1,
+      clampMin: 0.2,
+      clampMax: 15,
+      onAfterChange: () => {
+        pp.doublet_kappa = null;
+        schedulePot();
+      },
+    });
     bindPairedControl({ idBase: "AlphaDeg", obj: pp, key: "alpha_deg", dec: 1, clampMin: -20, clampMax: 20, onAfterChange: schedulePot });
     if (isHalfBody) {
       bindPairedControl({ idBase: "SourceM", obj: pp, key: "source_m", dec: 1, clampMin: 0.5, clampMax: 40, onAfterChange: schedulePot });
@@ -1115,17 +1140,42 @@ function renderBay02Controls(ctx) {
     }
 
     document.getElementById("prePotMagnus").onclick = () => {
-      Object.assign(pp, { u_inf: 2.0, alpha_deg: 0.0, gamma: -12.566, presetMode: "magnus" });
+      Object.assign(pp, {
+        u_inf: 2.0,
+        alpha_deg: 0.0,
+        gamma: -12.566,
+        doublet_kappa: null,
+        source_x: null,
+        source_y: null,
+        presetMode: "magnus",
+      });
       renderBay02Controls(ctx);
       runBay02(ctx);
     };
     document.getElementById("prePotDalembert").onclick = () => {
-      Object.assign(pp, { u_inf: 2.0, alpha_deg: 0.0, gamma: 0.0, presetMode: "dalembert" });
+      Object.assign(pp, {
+        u_inf: 2.0,
+        alpha_deg: 0.0,
+        gamma: 0.0,
+        doublet_kappa: null,
+        source_x: null,
+        source_y: null,
+        presetMode: "dalembert",
+      });
       renderBay02Controls(ctx);
       runBay02(ctx);
     };
     document.getElementById("prePotHalfbody").onclick = () => {
-      Object.assign(pp, { u_inf: 2.0, alpha_deg: 0.0, gamma: 0.0, source_m: 12.0, presetMode: "halfbody" });
+      Object.assign(pp, {
+        u_inf: 2.0,
+        alpha_deg: 0.0,
+        gamma: 0.0,
+        source_m: 12.0,
+        source_x: -0.5,
+        source_y: 0.0,
+        doublet_kappa: null,
+        presetMode: "halfbody",
+      });
       renderBay02Controls(ctx);
       runBay02(ctx);
     };
@@ -1310,12 +1360,18 @@ async function runBay02(ctx, opts = {}) {
     } else {
       const pp = state.potentialParams;
       const isHalfBody = pp.presetMode === "halfbody";
-      const kappa = 2 * Math.PI * pp.u_inf * 1.0;
+      const kappa = Number.isFinite(pp.doublet_kappa) ? pp.doublet_kappa : 2 * Math.PI * pp.u_inf * 1.0;
       const reqPayload = isHalfBody
         ? {
             u_inf: pp.u_inf,
             alpha_deg: pp.alpha_deg ?? 0.0,
-            sources: [{ x: -0.5, y: 0, m: pp.source_m ?? 12.0 }],
+            sources: [
+              {
+                x: Number.isFinite(pp.source_x) ? pp.source_x : -0.5,
+                y: Number.isFinite(pp.source_y) ? pp.source_y : 0,
+                m: pp.source_m ?? 12.0,
+              },
+            ],
             doublets: [],
             vortices: [],
           }

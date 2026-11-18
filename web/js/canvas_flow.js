@@ -160,7 +160,7 @@ export class FlowCanvasEngine {
     if (c === "ok" || c === "stokes") return pal.ok;
     if (this._isDark()) {
       if (c === "#0072b2" || c === "#1d4ed8") return pal.primary;
-      if (c === "#d55e00" || c === "#d97706" || c === "#b45309") return pal.amber;
+      if (c === "#d55e00" || c === "#d97706" || c === "#b45309" || c === "#e6a23c") return pal.amber;
       if (c === "#b91c1c" || c === "#dc2626" || c === "#e05a47") return pal.coral;
       if (c === "#009e73" || c === "#15803d") return pal.stokes;
       if (c === "#7c3aed") return pal.secondary;
@@ -180,7 +180,7 @@ export class FlowCanvasEngine {
     const resolved = this._resolveColor(col, fallback || pal.labelInk);
     const c = String(resolved || "").toLowerCase().trim();
     if (this._isDark()) {
-      if (c === "#0072b2" || c === "#1d4ed8" || c === "#1e40af") return pal.primary;
+      if (c === "#0072b2" || c === "#1d4ed8" || c === "#1e40af" || c === "#005a8d") return pal.primary;
       if (c === "#d55e00" || c === "#d97706" || c === "#b45309" || c === "#92400e") return pal.amber;
       if (c === "#b91c1c" || c === "#dc2626" || c === "#e05a47" || c === "#991b1b") return pal.coral;
       if (c === "#009e73" || c === "#15803d" || c === "#166534") return pal.ok;
@@ -199,7 +199,7 @@ export class FlowCanvasEngine {
       return "#166534";
     }
     if (c === "#dc2626" || c === "#b91c1c" || c === "#e05a47" || c === "#f87171") return "#991B1B";
-    if (c === "#0072b2" || c === "#1d4ed8" || c === "#58a6ff" || c === "#38bdf8") return "#005A8D";
+    if (c === "#0072b2" || c === "#1d4ed8" || c === "#58a6ff" || c === "#38bdf8" || c === "#56b4e9") return "#005A8D";
     if (c === "#7c3aed" || c === "#a78bfa") return "#5B21B6";
     if (c === "#2dd4bf") return "#0F766E";
     if (c === "#cbd5e1" || c === "#9ca3af" || c === "#94a3b8" || c === "#9fb3c8" || c === "#7f8ea3") {
@@ -1543,11 +1543,22 @@ export class FlowCanvasEngine {
         ctx.lineWidth = 1.6;
         ctx.beginPath(); ctx.moveTo(ox, py); ctx.lineTo(ox + boxW, py); ctx.stroke();
         if (hl.label) {
-          ctx.fillStyle = this._resolveTextColor(hl.color, pal.amber);
           ctx.font = '600 12px "IBM Plex Mono", monospace';
+          const tw = ctx.measureText(hl.label).width;
+          const padX = 5;
+          const pillW = tw + padX * 2;
+          const pillH = 18;
+          const bx = ox + 6;
+          const by = Math.max(oy + 2, py - pillH - 3);
+          ctx.fillStyle = pal.pillBg;
+          ctx.beginPath();
+          if (typeof ctx.roundRect === "function") ctx.roundRect(bx, by, pillW, pillH, 4);
+          else ctx.rect(bx, by, pillW, pillH);
+          ctx.fill();
+          ctx.fillStyle = this._resolveTextColor(hl.color, pal.amber);
           ctx.textAlign = "left";
-          ctx.textBaseline = "alphabetic";
-          ctx.fillText(hl.label, ox + 10, py - 6);
+          ctx.textBaseline = "middle";
+          ctx.fillText(hl.label, bx + padX, by + pillH * 0.5 + 0.5);
         }
         ctx.restore();
       }

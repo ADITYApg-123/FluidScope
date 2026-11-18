@@ -13,7 +13,7 @@ from fluidscope.ai.schemas import DoubtCoachReply, LLMConfig, ParsedPhysicsQuery
 from fluidscope.ai.llm_client import call_llm_json
 
 
-_NO_NEG_ZERO_RE = re.compile(r"(^|[\s=:(\[,${])-0\.(0+)(?!\d)")
+_NO_NEG_ZERO_RE = re.compile(r"(^|[\s=:(\[,${<>~≈≤≥])-(0(?:\.0+)?)(?![\d.])")
 
 _FAMILY_EQUATION_TEX: dict[str, str] = {
     "kinematics_equation": r"Material acceleration splits as $\mathbf{a} = \partial\mathbf{V}/\partial t + (\mathbf{V}\cdot\nabla)\mathbf{V}$, with vorticity $\Omega_z = \partial v/\partial x - \partial u/\partial y$.",
@@ -33,7 +33,7 @@ _FAMILY_EQUATION_TEX: dict[str, str] = {
 
 
 def _clamp_neg_zero_text(text: str) -> str:
-    return _NO_NEG_ZERO_RE.sub(r"\g<1>0.\2", str(text))
+    return _NO_NEG_ZERO_RE.sub(r"\1\2", str(text))
 
 
 def _fmt_num(val: Any, decimals: int = 3, sci: bool = False) -> str:
@@ -47,7 +47,13 @@ def _fmt_num(val: Any, decimals: int = 3, sci: bool = False) -> str:
         v = 0.0
     elif sci and abs(v) < 1e-12:
         v = 0.0
-    return f"{v:.{decimals}e}" if sci else f"{v:.{decimals}f}"
+    out = f"{v:.{decimals}e}" if sci else f"{v:.{decimals}f}"
+    try:
+        if float(out) == 0.0 and out.startswith("-"):
+            out = out[1:]
+    except ValueError:
+        pass
+    return out
 
 
 def _summarize_solver_facts(parsed: ParsedPhysicsQuery | None, solver_data: dict[str, Any] | None) -> list[str]:
@@ -63,10 +69,13 @@ def _summarize_solver_facts(parsed: ParsedPhysicsQuery | None, solver_data: dict
         facts.append(
             f"Steady = {cls.get('steady')}, Incompressible = {cls.get('incompressible')}, Irrotational = {cls.get('irrotational')}"
         )
-        if pr.get("vorticity_z") is not None:
+        w_val = pr.get("vorticity_z")
+        d_val = pr.get("divergence")
+        if w_val is not None or d_val is not None:
+            w_txt = f"{_fmt_num(w_val, 3)}\\text{{ s}}^{{-1}}" if w_val is not None else "\\text{undefined}"
+            d_txt = f"{_fmt_num(d_val, 3)}\\text{{ s}}^{{-1}}" if d_val is not None else "\\text{undefined}"
             facts.append(
-                f"Probe vorticity $\\Omega_z = {_fmt_num(pr['vorticity_z'], 3)}\\text{{ s}}^{{-1}}$, "
-                f"divergence $\\nabla\\cdot\\mathbf{{V}} = {_fmt_num(pr.get('divergence', 0.0), 3)}\\text{{ s}}^{{-1}}$"
+                f"Probe vorticity $\\Omega_z = {w_txt}$, divergence $\\nabla\\cdot\\mathbf{{V}} = {d_txt}$"
             )
         if st.get("circulation_line") is not None:
             facts.append(
@@ -208,7 +217,7 @@ def answer_doubt(
         trap = f"**Why the shortcut fails:** {parsed.broken_shortcut} "
         if "bernoulli" in q_low:
             trap += (
-                r"Bernoulli requires steady, incompressible, inviscid flow *and* irrotationality across streamlines "
+                r"Bernoulli requires steady, incompressible, inviscid flow **and** irrotationality across streamlines "
                 r"(Eq. 4.43: $\partial H / \partial n = V \Omega_z / g$) with zero eddy dissipation."
             )
         elif "streakline" in q_low or "pathline" in q_low or "streamline" in q_low:

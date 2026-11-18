@@ -3,7 +3,7 @@
  * Grounded strictly to active solver residuals across Labs 2A-4D, AI Translator, and post-submit Quiz 05.
  */
 import { ROCKER_DEFS, bus, loadLLMConfig, state } from "../core/store.js";
-import { formatInlineRichText, formatRichText, renderTex } from "../math_ui.js";
+import { formatInlineRichText, formatRichText } from "../math_ui.js";
 
 const VALID_FAMILIES = new Set([
   "kinematics_equation",
@@ -155,13 +155,20 @@ function esc(str) {
 }
 
 function clampNegZeroText(str) {
-  return String(str ?? "").replace(/(^|[\s=:(\[,${])-0\.(0+)(?!\d)/g, "$10.$2");
+  return String(str ?? "").replace(
+    /(^|[\s=:(\[,${<>~≈≤≥|*+"'])-(0(?:\.0+)?)(?![\d.])/g,
+    "$1$2"
+  );
 }
 
 function clampNum(v, lo, hi, def) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return def;
+  const parsed = v === null || v === undefined || v === "" ? def : Number(v);
+  const n = Number.isFinite(parsed) ? parsed : def;
   return Math.max(lo, Math.min(hi, n));
+}
+
+function roundObstacleCoord(n) {
+  return Math.round(n * 10000) / 10000;
 }
 
 function formatProviderLabel(rawProvider) {
@@ -178,17 +185,25 @@ function sanitizeObstacles(raw) {
   if (!Array.isArray(raw)) return [];
   const allowed = new Set(["circle", "rect", "splitter", "step"]);
   return raw
-    .filter((o) => o && typeof o === "object" && allowed.has(o.type))
-    .map((o) => ({
-      type: o.type,
-      x: clampNum(o.x, 0.02, 0.95, 0.25),
-      y: clampNum(o.y, 0.05, 0.95, 0.5),
-      r: clampNum(o.r, 0.03, 0.35, 0.1),
-      x0: clampNum(o.x0, 0.02, 0.95, 0.3),
-      y0: clampNum(o.y0, 0.02, 0.95, 0.45),
-      x1: clampNum(o.x1, 0.05, 0.98, 0.55),
-      y1: clampNum(o.y1, 0.05, 0.98, 0.55),
-    }));
+    .map((o) => {
+      if (!o || typeof o !== "object") return null;
+      const t = String(o.type || "").toLowerCase();
+      if (!allowed.has(t)) return null;
+      if (t === "circle") {
+        return {
+          type: "circle",
+          x: roundObstacleCoord(clampNum(o.x, 0.02, 0.95, 0.25)),
+          y: roundObstacleCoord(clampNum(o.y, 0.05, 0.95, 0.5)),
+          r: roundObstacleCoord(clampNum(o.r, 0.03, 0.35, 0.1)),
+        };
+      }
+      const x0 = roundObstacleCoord(clampNum(o.x0, 0.02, 0.95, 0.3));
+      const y0 = roundObstacleCoord(clampNum(o.y0, 0.02, 0.95, 0.45));
+      const x1 = roundObstacleCoord(clampNum(o.x1, Math.max(0.05, x0 + 0.01), 0.98, 0.55));
+      const y1 = roundObstacleCoord(clampNum(o.y1, Math.max(0.05, y0 + 0.01), 0.98, 0.55));
+      return { type: t, x0, y0, x1, y1 };
+    })
+    .filter(Boolean);
 }
 
 export function sanitizeParsedQuery(raw, fallbackFamily = null) {
@@ -283,47 +298,6 @@ function applyRichAndKatex(containerEl, rawText, inline = false) {
   if (!containerEl) return;
   const clean = rawText || "";
   containerEl.innerHTML = inline ? formatInlineRichText(clean) : formatRichText(clean);
-  if (typeof document.createTreeWalker !== "function" || typeof document.createDocumentFragment !== "function") {
-    return;
-  }
-  const walker = document.createTreeWalker(containerEl, NodeFilter.SHOW_TEXT);
-  const textNodes = [];
-  let node;
-  while ((node = walker.nextNode())) {
-    if (!node.parentElement) continue;
-    if (node.parentElement.closest?.("code, .katex, .coach-math-inline, .coach-math-display, .coach-math-fallback")) continue;
-    if (node.nodeValue && node.nodeValue.includes("$")) {
-      textNodes.push(node);
-    }
-  }
-  for (const tn of textNodes) {
-    const str = tn.nodeValue || "";
-    const re = /\$\$([^$]+?)\$\$|\$([^\s$][^$\n]*?[^\s$]|[^\s$])\$/g;
-    let lastIdx = 0;
-    let match;
-    let matchedAny = false;
-    const frag = document.createDocumentFragment();
-    while ((match = re.exec(str)) !== null) {
-      const isDisplay = Boolean(match[1]);
-      const tex = (match[1] ?? match[2] ?? "").trim();
-      if (!tex || /^\d[\d,.\s]*$/.test(tex)) continue;
-      matchedAny = true;
-      if (match.index > lastIdx) {
-        frag.appendChild(document.createTextNode(str.slice(lastIdx, match.index)));
-      }
-      const mathEl = document.createElement(isDisplay ? "div" : "span");
-      mathEl.className = isDisplay ? "coach-math-block" : "coach-math-inline";
-      renderTex(mathEl, tex, isDisplay);
-      frag.appendChild(mathEl);
-      lastIdx = re.lastIndex;
-    }
-    if (matchedAny) {
-      if (lastIdx < str.length) {
-        frag.appendChild(document.createTextNode(str.slice(lastIdx)));
-      }
-      tn.parentNode?.replaceChild(frag, tn);
-    }
-  }
 }
 
 function getBrokenAssumptionLabels(assumptions) {

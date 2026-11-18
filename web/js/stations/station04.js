@@ -948,7 +948,7 @@ export function renderStation04(ctx) {
           unit: "m",
           min: 0.15,
           max: 0.80,
-          step: 0.01,
+          step: 0.001,
           value: p.jumpH1,
           dec: 3,
         })}

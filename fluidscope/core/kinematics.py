@@ -89,7 +89,13 @@ def safe_parse_velocity(
         raise ValueError(f"Unknown symbol(s) {names}. Allowed variables are x, y, t and declared parameters.")
 
     sub_expr = expr.subs({param_map[k]: float(v) for k, v in (params or {}).items()})
-    return expr, sp.simplify(sub_expr)
+    sub_simple = sp.simplify(sub_expr)
+    if sub_simple.has(sp.I) or sub_simple.is_real is False:
+        raise ValueError(
+            f"Velocity expression '{expr_str}' produces complex/imaginary values; "
+            "only real-valued velocity fields are supported."
+        )
+    return expr, sub_simple
 
 
 def _lambdify_2d(expr: sp.Expr):
@@ -98,9 +104,12 @@ def _lambdify_2d(expr: sp.Expr):
     def wrapped(xv, yv, tv):
         with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
             out = fn(xv, yv, tv)
+        if np.iscomplexobj(out):
+            if np.any(np.abs(np.imag(out)) > 1e-12):
+                raise ValueError("Velocity evaluation produced complex/imaginary values.")
+            out = np.real(out)
         if np.ndim(xv) == 0 and np.ndim(yv) == 0:
-            val = float(np.real(out)) if np.iscomplexobj(out) else float(out)
-            return val
+            return float(out)
         arr = np.broadcast_to(np.asarray(out, dtype=np.float64), np.broadcast_shapes(np.shape(xv), np.shape(yv)))
         return arr
 
@@ -393,12 +402,13 @@ def analyze_kinematics(
         gamma_area = float(np.sum(np.where(finite_mask, WW, 0.0) * RR) * dr * dt_q)
     else:
         gamma_area = 0.0
-    discrepancy = valid_loop and abs(gamma_line - gamma_area) > max(0.05, 0.08 * max(abs(gamma_line), 1.0))
+    tol = 1e-4 if is_irrotational else max(0.05, 0.08 * abs(gamma_line))
+    discrepancy = valid_loop and abs(gamma_line - gamma_area) > tol
     center_u = _safe_eval_point(u_fn, lcx, lcy, t_eval)
     center_v = _safe_eval_point(v_fn, lcx, lcy, t_eval)
     center_singular = (center_u is None) or (center_v is None) or (abs(center_u) > 1e4) or (abs(center_v) > 1e4)
     stokes_singularity_inside = bool(
-        (not np.all(finite_mask)) or (not np.all(vel_finite)) or center_singular or discrepancy
+        (not valid_loop) or (not np.all(finite_mask)) or (not np.all(vel_finite)) or center_singular or discrepancy
     )
 
     # Point telemetry at (x0, y0, t_eval)
