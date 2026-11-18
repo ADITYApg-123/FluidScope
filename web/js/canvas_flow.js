@@ -100,16 +100,16 @@ export class FlowCanvasEngine {
         solidStroke: "#94A3B8",
         fluidFill: "rgba(56, 189, 248, 0.16)",
         fluidStroke: "#38BDF8",
-        primary: OKABE_ITO.blue,
+        primary: "#58A6FF",
         streamline: "#38BDF8",
         pathline: "#F59E0B",
         streakline: "#F87171",
-        stokes: OKABE_ITO.green,
+        stokes: "#34D399",
         secondary: "#A78BFA",
         teal: "#2DD4BF",
         amber: "#F59E0B",
         coral: "#F87171",
-        ok: OKABE_ITO.green,
+        ok: "#3FB950",
         pillBg: "rgba(15, 23, 42, 0.94)",
         pillBorder: "#475569",
         pillInk: "#F1F5F9",
@@ -151,14 +151,21 @@ export class FlowCanvasEngine {
   _resolveColor(col, fallback) {
     const pal = this._palette();
     if (!col) return fallback || pal.primary;
-    const c = String(col).toLowerCase();
+    const c = String(col).toLowerCase().trim();
     if (c === "primary") return pal.primary;
     if (c === "secondary" || c === "purple") return pal.secondary;
     if (c === "teal") return pal.teal;
     if (c === "amber") return pal.amber;
     if (c === "coral" || c === "trap") return pal.coral;
     if (c === "ok" || c === "stokes") return pal.ok;
-    if (!this._isDark()) {
+    if (this._isDark()) {
+      if (c === "#0072b2" || c === "#1d4ed8") return pal.primary;
+      if (c === "#d55e00" || c === "#d97706" || c === "#b45309") return pal.amber;
+      if (c === "#b91c1c" || c === "#dc2626" || c === "#e05a47") return pal.coral;
+      if (c === "#009e73" || c === "#15803d") return pal.stokes;
+      if (c === "#7c3aed") return pal.secondary;
+      if (c === "#475569") return "#94A3B8";
+    } else {
       if (c === "#d9e2ec" || c === "#f0f6fc") return "#0F172A";
       if (c === "#e6a23c") return "#B45309";
       if (c === "#e05a47") return OKABE_ITO.red;
@@ -166,6 +173,40 @@ export class FlowCanvasEngine {
       if (c === "#9fb3c8" || c === "#7f8ea3") return "#475569";
     }
     return col;
+  }
+
+  _resolveTextColor(col, fallback) {
+    const pal = this._palette();
+    const resolved = this._resolveColor(col, fallback || pal.labelInk);
+    const c = String(resolved || "").toLowerCase().trim();
+    if (this._isDark()) {
+      if (c === "#0072b2" || c === "#1d4ed8" || c === "#1e40af") return pal.primary;
+      if (c === "#d55e00" || c === "#d97706" || c === "#b45309" || c === "#92400e") return pal.amber;
+      if (c === "#b91c1c" || c === "#dc2626" || c === "#e05a47" || c === "#991b1b") return pal.coral;
+      if (c === "#009e73" || c === "#15803d" || c === "#166534") return pal.ok;
+      if (c === "#0f766e") return pal.teal;
+      if (c === "#7c3aed" || c === "#5b21b6") return pal.secondary;
+      if (c === "#475569" || c === "#334155" || c === "#64748b" || c === "#cbd5e1" || c === "#9ca3af") {
+        return pal.tickInk;
+      }
+      if (c === "#0f172a" || c === "#111827" || c === "#000000") return pal.labelInk;
+      return resolved;
+    }
+    if (c === "#d55e00" || c === "#d97706" || c === "#b45309" || c === "#e69f00" || c === "#e6a23c" || c === "#f59e0b") {
+      return "#92400E";
+    }
+    if (c === "#009e73" || c === "#15803d" || c === "#58b368" || c === "#3fb950" || c === "#34d399") {
+      return "#166534";
+    }
+    if (c === "#dc2626" || c === "#b91c1c" || c === "#e05a47" || c === "#f87171") return "#991B1B";
+    if (c === "#0072b2" || c === "#1d4ed8" || c === "#58a6ff" || c === "#38bdf8") return "#005A8D";
+    if (c === "#7c3aed" || c === "#a78bfa") return "#5B21B6";
+    if (c === "#2dd4bf") return "#0F766E";
+    if (c === "#cbd5e1" || c === "#9ca3af" || c === "#94a3b8" || c === "#9fb3c8" || c === "#7f8ea3") {
+      return "#475569";
+    }
+    if (c === "#e2e8f0" || c === "#f1f5f9" || c === "#ffffff") return pal.labelInk;
+    return resolved;
   }
 
   _initMotionPreferences() {
@@ -868,14 +909,14 @@ export class FlowCanvasEngine {
     else if (align === "right") bx = px - w;
     const by = py - h * 0.5;
     ctx.fillStyle = pal.pillBg;
-    ctx.strokeStyle = color || pal.pillBorder;
+    ctx.strokeStyle = color ? this._resolveColor(color, pal.pillBorder) : pal.pillBorder;
     ctx.lineWidth = 1.1;
     ctx.beginPath();
     if (typeof ctx.roundRect === "function") ctx.roundRect(bx, by, w, h, 4);
     else ctx.rect(bx, by, w, h);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = color || pal.pillInk;
+    ctx.fillStyle = color ? this._resolveTextColor(color, pal.pillInk) : pal.pillInk;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, bx + w * 0.5, by + h * 0.5 + 0.5);
@@ -1502,7 +1543,7 @@ export class FlowCanvasEngine {
         ctx.lineWidth = 1.6;
         ctx.beginPath(); ctx.moveTo(ox, py); ctx.lineTo(ox + boxW, py); ctx.stroke();
         if (hl.label) {
-          ctx.fillStyle = col;
+          ctx.fillStyle = this._resolveTextColor(hl.color, pal.amber);
           ctx.font = '600 12px "IBM Plex Mono", monospace';
           ctx.textAlign = "left";
           ctx.textBaseline = "alphabetic";
@@ -1542,7 +1583,7 @@ export class FlowCanvasEngine {
     if (this.scene.annotations?.length) {
       for (const ann of this.scene.annotations) {
         const [px, py] = this._worldToPixel(ann.x, ann.y, tr);
-        this._drawPill(ctx, px, py, ann.text, this._resolveColor(ann.color, pal.pillBorder), ann.align || "center");
+        this._drawPill(ctx, px, py, ann.text, ann.color ? this._resolveColor(ann.color, pal.pillBorder) : null, ann.align || "center");
       }
     }
 
@@ -1632,7 +1673,7 @@ export class FlowCanvasEngine {
       ctx.lineWidth = 1.6;
       ctx.fillRect(bx, by, bw, bh);
       ctx.strokeRect(bx, by, bw, bh);
-      ctx.fillStyle = col;
+      ctx.fillStyle = this._resolveTextColor(this.scene.emptyTone === "primary" ? "primary" : "coral", pal.labelInk);
       ctx.font = '700 13.5px "Space Grotesk", "IBM Plex Sans", sans-serif';
       ctx.textAlign = "center";
       ctx.textBaseline = "alphabetic";

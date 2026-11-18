@@ -7,7 +7,7 @@ from typing import Any
 from starlette.applications import Starlette
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
@@ -42,6 +42,18 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 def _error_response(exc: Exception, status: int = 400) -> JSONResponse:
     return JSONResponse({"ok": False, "error": str(exc)}, status_code=status)
+
+
+_FAVICON_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+    '<rect width="32" height="32" rx="6" fill="#1D4ED8"/>'
+    '<path d="M5 17c4-6 8-6 11 0s7 6 11 0" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"/>'
+    '</svg>'
+)
+
+
+async def favicon(_request: Request) -> Response:
+    return Response(_FAVICON_SVG, media_type="image/svg+xml", status_code=200)
 
 
 async def health(_request: Request) -> JSONResponse:
@@ -273,7 +285,9 @@ async def api_lbm_tunnel(request: Request) -> JSONResponse:
         body: dict[str, Any] = await request.json()
         obstacles = body.get("obstacles") if body.get("obstacles") is not None else body.get("customObstacles")
         preset = body.get("preset", "cylinder")
-        if isinstance(obstacles, list) and len(obstacles) > 0 and (body.get("customObstacles") is not None or preset == "custom"):
+        if isinstance(obstacles, list) and len(obstacles) > 0 and (
+            body.get("customObstacles") is not None or "preset" not in body or preset == "custom"
+        ):
             preset = "custom"
         data = simulate_lbm_tunnel(
             preset=preset,
@@ -323,6 +337,8 @@ def _dispatch_parsed_solver(parsed: ParsedPhysicsQuery) -> dict[str, Any] | None
     if fam == "potential_superposition":
         return solve_potential_superposition(
             u_inf=float(p.get("u_inf", 2.0)),
+            alpha_deg=float(p.get("alpha_deg", 0.0)),
+            sources=p.get("sources", []),
             doublets=p.get("doublets", [{"x": 0.0, "y": 0.0, "kappa": 12.566}]),
             vortices=p.get("vortices", [{"x": 0.0, "y": 0.0, "gamma": -12.566}]),
         )
@@ -430,6 +446,7 @@ async def api_twists(_request: Request) -> JSONResponse:
 
 def create_app() -> Starlette:
     routes = [
+        Route("/favicon.ico", favicon, methods=["GET"]),
         Route("/api/health", health, methods=["GET"]),
         Route("/api/audit", api_audit, methods=["POST"]),
         Route("/api/kinematics", api_kinematics, methods=["POST"]),

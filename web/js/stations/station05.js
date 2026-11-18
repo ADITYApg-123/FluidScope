@@ -1175,7 +1175,7 @@ export async function renderStation05(ctx, renderOpts = {}) {
         metricsBox.querySelectorAll("[data-quiz-metric]").forEach((el) => el.remove());
         const badge = document.createElement("span");
         badge.dataset.quizMetric = "1";
-        badge.style.color = "var(--accent)";
+        badge.style.color = "var(--cobalt-ink)";
         badge.textContent = `${prob.id} \u00b7 ${prob.book_ref}`;
         metricsBox.prepend(badge);
       }

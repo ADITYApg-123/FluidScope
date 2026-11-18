@@ -209,7 +209,7 @@
 .coach-chip-ok {
   background: var(--ok-soft);
   border-color: var(--ok-border);
-  color: var(--ink-primary);
+  color: var(--ok-ink);
 }
 
 .coach-context-trap {

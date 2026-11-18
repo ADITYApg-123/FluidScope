@@ -7,7 +7,7 @@
  */
 import { bus, loadLLMConfig, persistLLMConfig } from "../core/store.js";
 import { fmtNum } from "../core/color_scales.js";
-import { formatRichText, renderTex } from "../math_ui.js";
+import { formatInlineRichText, formatRichText, renderTex } from "../math_ui.js";
 import { displaySolvedFamily } from "./scene_mapper.js";
 
 const SAMPLE_PROMPTS = [
@@ -82,7 +82,7 @@ function fmt(v, d = 3) {
 }
 
 function clampNegZeroText(str) {
-  return String(str ?? "").replace(/(^|[\s=:(\[,])-0\.(0+)(?!\d)/g, "$10.$2");
+  return String(str ?? "").replace(/(^|[\s=:(\[,${])-0\.(0+)(?!\d)/g, "$10.$2");
 }
 
 function formatProviderLabel(rawProvider) {
@@ -150,9 +150,10 @@ function sanitizeParsedQuery(parsed, state) {
   };
 }
 
-function applyRichAndKatex(containerEl, rawText) {
+function applyRichAndKatex(containerEl, rawText, inline = false) {
   if (!containerEl) return;
-  containerEl.innerHTML = formatRichText(rawText || "");
+  const clean = rawText || "";
+  containerEl.innerHTML = inline ? formatInlineRichText(clean) : formatRichText(clean);
   if (typeof document.createTreeWalker !== "function" || typeof document.createDocumentFragment !== "function") {
     return;
   }
@@ -519,7 +520,7 @@ export function renderStation01(ctx) {
     if (facts.length) {
       for (const f of facts) {
         const li = document.createElement("li");
-        li.textContent = clampNegZeroText(f);
+        applyRichAndKatex(li, clampNegZeroText(f), true);
         ul.appendChild(li);
       }
     } else {

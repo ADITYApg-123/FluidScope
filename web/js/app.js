@@ -334,13 +334,61 @@ async function refreshAudit(contextId = null) {
 
 function resolveBadgeColor(col) {
   if (!col) return "var(--ink-primary)";
-  const c = String(col).toLowerCase();
+  const c = String(col).toLowerCase().trim();
   if (c === "primary" || c === "#58a6ff" || c === "#1d4ed8") return "var(--accent)";
   if (c === "amber" || c === "#e6a23c") return "var(--amber)";
   if (c === "coral" || c === "trap" || c === "#e05a47") return "var(--coral)";
   if (c === "ok" || c === "#58b368") return "var(--ok-green)";
   if (c === "#d9e2ec" || c === "#f0f6fc") return "var(--ink-primary)";
   if (c === "#9fb3c8" || c === "#7f8ea3") return "var(--ink-secondary)";
+  return col;
+}
+
+function resolveMetricTextColor(col) {
+  if (!col) return "var(--ink-primary)";
+  const c = String(col).toLowerCase().trim();
+  if (
+    c === "amber" ||
+    c === "var(--amber)" ||
+    c === "#e6a23c" ||
+    c === "#d55e00" ||
+    c === "#b45309" ||
+    c === "#d97706"
+  ) {
+    return "var(--amber-ink)";
+  }
+  if (
+    c === "coral" ||
+    c === "trap" ||
+    c === "var(--coral)" ||
+    c === "#e05a47" ||
+    c === "#dc2626" ||
+    c === "#b91c1c"
+  ) {
+    return "var(--coral-ink)";
+  }
+  if (
+    c === "ok" ||
+    c === "stokes" ||
+    c === "var(--ok-green)" ||
+    c === "#58b368" ||
+    c === "#15803d" ||
+    c === "#009e73"
+  ) {
+    return "var(--ok-ink)";
+  }
+  if (
+    c === "primary" ||
+    c === "var(--accent)" ||
+    c === "#58a6ff" ||
+    c === "#1d4ed8" ||
+    c === "#0072b2"
+  ) {
+    return "var(--cobalt-ink)";
+  }
+  if (c === "secondary" || c === "purple") return "var(--ink-primary)";
+  if (c === "#d9e2ec" || c === "#f0f6fc") return "var(--ink-primary)";
+  if (c === "#9fb3c8" || c === "#7f8ea3" || c === "var(--ink-secondary)") return "var(--ink-secondary)";
   return col;
 }
 
@@ -376,7 +424,7 @@ function setDrawerMetrics(items) {
   const box = document.getElementById("drawerMetrics");
   if (!box) return;
   box.innerHTML = (items || [])
-    .map((m) => `<span style="color:${resolveBadgeColor(m.color)}">${m.k}: ${m.v}</span>`)
+    .map((m) => `<span style="color:${resolveMetricTextColor(m.color)}">${m.k}: ${m.v}</span>`)
     .join("");
 }
 
@@ -771,10 +819,27 @@ const FAMILY_FALLBACK_META = {
 
 const VALID_PHYSICS_FAMILIES = new Set(Object.keys(FAMILY_FALLBACK_META));
 
+function clampObstacleCoord(v, lo, hi, def) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return def;
+  return Math.max(lo, Math.min(hi, n));
+}
+
 function sanitizeObstacles(raw) {
   if (!Array.isArray(raw)) return [];
   const allowed = new Set(["circle", "rect", "splitter", "step"]);
-  return raw.filter((o) => o && typeof o === "object" && allowed.has(o.type));
+  return raw
+    .filter((o) => o && typeof o === "object" && allowed.has(o.type))
+    .map((o) => ({
+      type: o.type,
+      x: clampObstacleCoord(o.x, 0.02, 0.95, 0.25),
+      y: clampObstacleCoord(o.y, 0.05, 0.95, 0.5),
+      r: clampObstacleCoord(o.r, 0.03, 0.35, 0.1),
+      x0: clampObstacleCoord(o.x0, 0.02, 0.95, 0.3),
+      y0: clampObstacleCoord(o.y0, 0.02, 0.95, 0.45),
+      x1: clampObstacleCoord(o.x1, 0.05, 0.98, 0.55),
+      y1: clampObstacleCoord(o.y1, 0.05, 0.98, 0.55),
+    }));
 }
 
 function buildParsedQueryFallback(eventPayload = {}) {

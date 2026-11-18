@@ -6,6 +6,7 @@ SymPy / regex / physical-cue parser so the system works accurately offline and n
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -16,11 +17,23 @@ from fluidscope.ai.llm_client import call_llm_json
 from fluidscope.core.kinematics import _T, _X, _Y, safe_parse_velocity
 
 
+_FLOAT_NUM_RE = r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)"
+_POS_NUM_RE = r"((?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)"
+_UNIT_IN_EQ_RE = re.compile(r"\b(?:m/s|cm/s|mm/s|ft/s|rad/s|rpm|kpa|pa|m\^?3/s)\b", re.IGNORECASE)
+_STOP_CLAUSE_RE = re.compile(
+    r"^\s+(?:and|or|where|given|at|starting|start|from|with|find|compare|compute|predict|determine|for|while|when|dye|then|until|if)\b",
+    re.IGNORECASE,
+)
+
+
 def _extract_first_float(pattern: str, text: str, default: float | None = None) -> float | None:
     m = re.search(pattern, text, flags=re.IGNORECASE)
     if not m:
         return default
-    val = float(m.group(1))
+    try:
+        val = float(m.group(1))
+    except (ValueError, TypeError):
+        return default
     unit = m.group(2).lower() if len(m.groups()) >= 2 and m.group(2) else ""
     if unit == "mm":
         val *= 1e-3
@@ -31,26 +44,46 @@ def _extract_first_float(pattern: str, text: str, default: float | None = None) 
     return val
 
 
+def _extract_math_rhs(text: str, var_name: str) -> str | None:
+    m = re.search(
+        rf"(?<![a-zA-Z0-9_]){re.escape(var_name)}(?:\([^)]*\))?\s*=\s*",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not m:
+        return None
+    tail = text[m.end() :]
+    depth = 0
+    end_idx = len(tail)
+    for i, ch in enumerate(tail):
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            if depth == 0:
+                end_idx = i
+                break
+            depth -= 1
+        elif depth == 0:
+            if ch in ",;\r\n":
+                end_idx = i
+                break
+            if ch == "." and (i + 1 == len(tail) or tail[i + 1].isspace() or tail[i + 1].isalpha()):
+                end_idx = i
+                break
+            if ch.isspace() and _STOP_CLAUSE_RE.match(tail[i:]):
+                end_idx = i
+                break
+    expr = tail[:end_idx].strip().rstrip(".")
+    return expr or None
+
+
 def _extract_equations(text: str) -> tuple[str | None, str | None]:
-    # Matches u = ..., v = ... or u(x,y,t) = ... stopping before comma/and/v=/semicolon/period+space
-    m_u = re.search(
-        r"\bu(?:\([^)]*\))?\s*=\s*([^,;\n]+?)(?=(?:\s*,\s*v|\s+and\s+v|\s*;|\s*$))",
-        text,
-        flags=re.IGNORECASE,
-    )
-    m_v = re.search(
-        r"\bv(?:\([^)]*\))?\s*=\s*([^,;\n]+?)(?=(?:\s*,\s*w|\s+and\s+w|\s*;|\s+at\s+|\s+start|\s+from\s+|\s*$))",
-        text,
-        flags=re.IGNORECASE,
-    )
-    u_s = m_u.group(1).strip().rstrip(".") if m_u else None
-    v_s = m_v.group(1).strip().rstrip(".") if m_v else None
-    # Strip trailing English words after math if present
-    for stop in ["starting", "from", "with", "find", "where", "given"]:
-        if u_s and f" {stop} " in u_s.lower():
-            u_s = u_s[: u_s.lower().index(f" {stop} ")].strip()
-        if v_s and f" {stop} " in v_s.lower():
-            v_s = v_s[: v_s.lower().index(f" {stop} ")].strip()
+    u_s = _extract_math_rhs(text, "u")
+    v_s = _extract_math_rhs(text, "v")
+    if u_s and _UNIT_IN_EQ_RE.search(u_s):
+        u_s = None
+    if v_s and _UNIT_IN_EQ_RE.search(v_s):
+        v_s = None
     return u_s, v_s
 
 
@@ -62,11 +95,15 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
     # 1. Explicit 2D velocity equations u = ..., v = ...
     u_eq, v_eq = _extract_equations(raw)
     if u_eq is not None and v_eq is not None:
-        t0_val = _extract_first_float(r"\bt0\s*=\s*([-0-9.]+)", raw, 1.0)
+        t0_val = _extract_first_float(rf"\bt0\s*=\s*{_FLOAT_NUM_RE}(?![a-zA-Z_])", raw, 1.0)
         t0 = t0_val if t0_val is not None else 1.0
-        v0_val = _extract_first_float(r"\bv0\s*=\s*([-0-9.]+)", raw, 1.0)
+        v0_val = _extract_first_float(rf"\bv0\s*=\s*{_FLOAT_NUM_RE}(?![a-zA-Z_])", raw, 1.0)
         v0 = v0_val if v0_val is not None else 1.0
-        t_eval_val = _extract_first_float(r"\bt\s*=\s*([-0-9.]+)", raw, 2.0 * t0)
+        x0_val = _extract_first_float(rf"\bx0\s*=\s*{_FLOAT_NUM_RE}(?![a-zA-Z_])", raw, 1.0)
+        x0 = x0_val if x0_val is not None else 1.0
+        y0_val = _extract_first_float(rf"\by0\s*=\s*{_FLOAT_NUM_RE}(?![a-zA-Z_])", raw, 0.0)
+        y0 = y0_val if y0_val is not None else 0.0
+        t_eval_val = _extract_first_float(rf"\bt\s*=\s*{_FLOAT_NUM_RE}(?![a-zA-Z_])", raw, 2.0 * t0)
         t_eval = t_eval_val if t_eval_val is not None else (2.0 * t0)
         if t_eval <= t0:
             t_eval = t0 + 1.0
@@ -102,8 +139,8 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
                 "u_str": u_eq,
                 "v_str": v_eq,
                 "params": {"t0": t0, "v0": v0},
-                "x0": 1.0,
-                "y0": 0.0,
+                "x0": x0,
+                "y0": y0,
                 "t0": t0,
                 "t_eval": t_eval,
             },
@@ -118,7 +155,27 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
         )
 
     # 2. Honest out-of-scope check for 3D / compressible turbomachinery
-    if any(k in low for k in ["compressor", "impeller", "turbine blade", "supersonic", "oblique shock", "nozzle shock", "3d compressible"]):
+    has_vortex_cues = (
+        "forced vortex" in low
+        or "free vortex" in low
+        or "rankine" in low
+        or ("vortex" in low and any(k in low for k in ["vθ", "vtheta", "ωr", "omega", "r1", "r2"]))
+    )
+    is_turbomachinery_3d = any(
+        k in low
+        for k in [
+            "compressor",
+            "turbine blade",
+            "supersonic",
+            "oblique shock",
+            "nozzle shock",
+            "3d compressible",
+            "turbomachinery",
+            "3d shock",
+            "blade passage",
+        ]
+    ) or ("impeller" in low and not has_vortex_cues)
+    if is_turbomachinery_3d:
         return ParsedPhysicsQuery(
             family="unsupported_3d",
             confidence=0.95,
@@ -137,12 +194,12 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
 
     # 3. Rotating vessel (Ex 4.8)
     if ("rpm" in low or "rotat" in low) and any(k in low for k in ["tank", "vessel", "cylinder", "uncover", "spill"]):
-        d_m = _extract_first_float(r"diameter\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low)
-        r_m = _extract_first_float(r"radius\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low)
+        d_m = _extract_first_float(rf"diameter\s*(?:of|=)?\s*{_POS_NUM_RE}\s*(m|cm|mm)?", low)
+        r_m = _extract_first_float(rf"radius\s*(?:of|=)?\s*{_POS_NUM_RE}\s*(m|cm|mm)?", low)
         radius = r_m if r_m is not None else (0.5 * d_m if d_m is not None else 0.30)
-        rpm_val = _extract_first_float(r"([0-9.]+)\s*rpm", low, 130.0)
+        rpm_val = _extract_first_float(rf"{_POS_NUM_RE}\s*rpm", low, 130.0)
         rpm = rpm_val if rpm_val is not None else 130.0
-        height_val = _extract_first_float(r"height\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low, 0.503)
+        height_val = _extract_first_float(rf"height\s*(?:of|=)?\s*{_POS_NUM_RE}\s*(m|cm|mm)?", low, 0.503)
         height = height_val if height_val is not None else 0.503
         return ParsedPhysicsQuery(
             family="rotating_vessel",
@@ -155,6 +212,72 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             raw_query=raw,
         )
 
+    # 3b. 2D Potential Flow Superposition (Magnus / Doublet / Rankine Half-Body, Ch. 7)
+    has_pot_keyword = any(
+        k in low
+        for k in [
+            "doublet",
+            "magnus",
+            "kutta-joukowski",
+            "kutta joukowski",
+            "potential superposition",
+            "potential flow",
+            "rankine half",
+            "half-body",
+            "half body",
+            "angle of attack",
+        ]
+    )
+    has_circ_stream = ("circulation" in low or "gamma" in low) and any(
+        k in low for k in ["cylinder", "uniform stream", "freestream", "doublet", "stagnation", "lift"]
+    )
+    if has_pot_keyword or has_circ_stream:
+        u_inf_val = _extract_first_float(rf"(?:u_?inf|u∞|freestream|uniform\s+stream)[^0-9+\-\n]*{_POS_NUM_RE}", raw)
+        if u_inf_val is None:
+            u_inf_val = _extract_first_float(rf"{_POS_NUM_RE}\s*m/s", low, 2.0)
+        u_inf = u_inf_val if u_inf_val is not None and u_inf_val > 0 else 2.0
+        alpha_val = _extract_first_float(rf"(?:alpha|α|angle\s+of\s+attack)\s*(?:=|of|is)?\s*{_FLOAT_NUM_RE}(?![a-zA-Z_])", raw, 0.0)
+        alpha_deg = alpha_val if alpha_val is not None else 0.0
+        cyl_r = _extract_first_float(rf"(?:radius\s*(?:of|=|is)?|\ba\s*=)\s*{_POS_NUM_RE}\s*(m|cm|mm)?", low, 1.0)
+        a_val = cyl_r if cyl_r is not None and cyl_r > 0 else 1.0
+        kappa = round(2.0 * math.pi * u_inf * (a_val ** 2), 4)
+
+        is_half_body = any(k in low for k in ["rankine half", "half-body", "half body"]) and "doublet" not in low and "cylinder" not in low
+        sources = [{"x": 0.0, "y": 0.0, "m": 6.0}] if is_half_body else []
+        doublets = [] if is_half_body else [{"x": 0.0, "y": 0.0, "kappa": kappa}]
+
+        gamma_ext = _extract_first_float(rf"(?:gamma|γ|circulation)\s*(?:=|of|is)?\s*{_FLOAT_NUM_RE}(?![a-zA-Z_])", raw)
+        if gamma_ext is not None:
+            gamma_val = gamma_ext
+            if "clockwise" in low and "counter" not in low and gamma_val > 0:
+                gamma_val = -gamma_val
+        elif any(k in low for k in ["zero circulation", "without circulation", "d'alembert"]):
+            gamma_val = 0.0
+        elif "clockwise" in low and "counter" not in low:
+            gamma_val = -12.566
+        elif any(k in low for k in ["counterclockwise", "counter-clockwise", "ccw"]):
+            gamma_val = 12.566
+        else:
+            gamma_val = 0.0 if is_half_body else -12.566
+        vortices = [{"x": 0.0, "y": 0.0, "gamma": round(gamma_val, 4)}] if abs(gamma_val) > 1e-9 else []
+
+        return ParsedPhysicsQuery(
+            family="potential_superposition",
+            confidence=0.93,
+            assumptions={"steady": True, "incompressible": True, "inviscid": True, "irrotational": True},
+            params={
+                "u_inf": u_inf,
+                "alpha_deg": alpha_deg,
+                "sources": sources,
+                "doublets": doublets,
+                "vortices": vortices,
+            },
+            concept_twist="Adding circulation Γ breaks aft-fore pressure symmetry and produces finite Kutta-Joukowski Magnus lift L' = -ρ U∞ Γ without viscosity.",
+            broken_shortcut="Expecting zero lift (D'Alembert paradox) around a rotating/circulating cylinder or applying viscous airfoil drag to potential flow.",
+            textbook_ref="Som, Biswas & Chakraborty Ch. 7.4–7.7 (Potential Superposition & Magnus Lift)",
+            raw_query=raw,
+        )
+
     # 4. Vortex flows (Free vs Forced vs Rankine vs Spiral)
     if "vortex" in low or ("bend" in low and "free" in low):
         mode = "forced" if "forced" in low or "solid-body" in low or "solid body" in low else (
@@ -162,13 +285,13 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
                 "spiral" if "spiral" in low else "free"
             )
         )
-        r1_val = _extract_first_float(r"inner\s*(?:radius|radii|wall)[^0-9]*([0-9.]+)\s*(m|cm|mm)?", low, 0.15)
+        r1_val = _extract_first_float(rf"(?:inner\s*(?:radius|radii|wall)[^0-9\n]*|\br1\s*=\s*){_POS_NUM_RE}\s*(m|cm|mm)?", low, 0.15)
         r1 = r1_val if r1_val is not None else 0.15
-        r2_val = _extract_first_float(r"outer\s*(?:radius|radii|wall)[^0-9]*([0-9.]+)\s*(m|cm|mm)?", low, 0.45)
+        r2_val = _extract_first_float(rf"(?:outer\s*(?:radius|radii|wall)[^0-9\n]*|\br2\s*=\s*){_POS_NUM_RE}\s*(m|cm|mm)?", low, 0.45)
         r2 = r2_val if r2_val is not None else 0.45
-        omega_val = _extract_first_float(r"(?:omega|angular)\s*(?:=|of)?\s*([0-9.]+)", low, 10.0)
+        omega_val = _extract_first_float(rf"(?:omega|ω|angular)\s*(?:=|of|is)?\s*{_POS_NUM_RE}", low, 10.0)
         omega = omega_val if omega_val is not None else 10.0
-        c_ext = _extract_first_float(r"\bc\s*=\s*([0-9.]+)", low, 0.9)
+        c_ext = _extract_first_float(rf"\bc\s*=\s*{_POS_NUM_RE}(?![a-zA-Z_])", low, 0.9)
         c_val = c_ext if c_ext is not None else 0.9
         return ParsedPhysicsQuery(
             family="vortex_flow",
@@ -187,15 +310,15 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
 
     # 5. Hydraulic Jump
     if any(k in low for k in ["hydraulic jump", "sluice", "conjugate depth", "apron", "froude"]):
-        v1_val = _extract_first_float(r"(?:velocity|v1|at)\s*(?:of|=)?\s*([0-9.]+)\s*m/s", low, 6.1)
+        v1_val = _extract_first_float(rf"(?:velocity|v1|at)\s*(?:of|=)?\s*{_POS_NUM_RE}\s*m/s", low, 6.1)
         v1 = v1_val if v1_val is not None else 6.1
-        h1 = _extract_first_float(r"([0-9.]+)\s*(m|cm|mm)\s*depth", low)
+        h1 = _extract_first_float(rf"{_POS_NUM_RE}\s*(m|cm|mm)\s*depth", low)
         if h1 is None:
-            h1 = _extract_first_float(r"depth\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low)
-        q = _extract_first_float(r"([0-9.]+)\s*m(?:\^3|3)/s", low)
-        w = _extract_first_float(r"([0-9.]+)\s*m\s*wide", low)
+            h1 = _extract_first_float(rf"depth\s*(?:of|=)?\s*{_POS_NUM_RE}\s*(m|cm|mm)?", low)
+        q = _extract_first_float(rf"{_POS_NUM_RE}\s*m(?:\^3|3)/s", low)
+        w = _extract_first_float(rf"{_POS_NUM_RE}\s*m\s*wide", low)
         if w is None:
-            w_val = _extract_first_float(r"width\s*(?:of|=)?\s*([0-9.]+)\s*(m|cm|mm)?", low, 6.1)
+            w_val = _extract_first_float(rf"width\s*(?:of|=)?\s*{_POS_NUM_RE}\s*(m|cm|mm)?", low, 6.1)
             w = w_val if w_val is not None else 6.1
         return ParsedPhysicsQuery(
             family="hydraulic_jump",
@@ -209,15 +332,25 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
         )
 
     # 6. Sudden pipe expansion (Borda-Carnot)
-    if any(k in low for k in ["sudden expansion", "sudden enlargement", "abrupt enlargement", "borda"]):
-        m_pair = re.search(r"([0-9.]+)\s*(m|cm|mm)?\s*to\s*([0-9.]+)\s*(m|cm|mm)?", low)
+    if any(k in low for k in ["sudden expansion", "sudden enlargement", "abrupt enlargement", "abruptly into", "abrupt expansion", "borda"]):
         d1, d2 = 0.10, 0.20
-        if m_pair:
-            d1 = float(m_pair.group(1)) * (1e-3 if (m_pair.group(2) or "").lower() == "mm" else 1.0)
-            d2 = float(m_pair.group(3)) * (1e-3 if (m_pair.group(4) or "").lower() == "mm" else 1.0)
-            if d2 <= d1:
-                d1, d2 = 0.10, 0.20
-        v1_val = _extract_first_float(r"([0-9.]+)\s*m/s", low, 4.0)
+        d1_ext = _extract_first_float(rf"\bD1\s*=\s*{_POS_NUM_RE}\s*(m|cm|mm)?", raw)
+        d2_ext = _extract_first_float(rf"\bD2\s*=\s*{_POS_NUM_RE}\s*(m|cm|mm)?", raw)
+        if d1_ext is not None and d2_ext is not None and d2_ext > d1_ext:
+            d1, d2 = d1_ext, d2_ext
+        else:
+            m_pair = re.search(rf"{_POS_NUM_RE}\s*(m|cm|mm)?\s*to\s*{_POS_NUM_RE}\s*(m|cm|mm)?", low)
+            if m_pair:
+                try:
+                    u1 = (m_pair.group(2) or "").lower()
+                    u2 = (m_pair.group(4) or "").lower()
+                    d1_c = float(m_pair.group(1)) * (1e-3 if u1 == "mm" else (1e-2 if u1 == "cm" else 1.0))
+                    d2_c = float(m_pair.group(3)) * (1e-3 if u2 == "mm" else (1e-2 if u2 == "cm" else 1.0))
+                    if d2_c > d1_c > 0:
+                        d1, d2 = d1_c, d2_c
+                except (ValueError, TypeError):
+                    d1, d2 = 0.10, 0.20
+        v1_val = _extract_first_float(rf"{_POS_NUM_RE}\s*m/s", low, 4.0)
         v1 = v1_val if v1_val is not None else 4.0
         return ParsedPhysicsQuery(
             family="sudden_expansion",
@@ -233,10 +366,17 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
     # 7. Accelerating / Free-fall tank (Ch 2.9)
     if any(k in low for k in ["free fall", "free-fall", "falling", "accelerating tank", "orifice", "leak"]):
         is_ff = any(k in low for k in ["free fall", "free-fall", "falling"])
-        ax_val = _extract_first_float(r"ax\s*=\s*([-0-9.]+)", low, 0.0 if is_ff else 3.0)
+        ax_val = _extract_first_float(rf"\bax\s*=\s*{_FLOAT_NUM_RE}(?![a-zA-Z_])", low, 0.0 if is_ff else 3.0)
         ax = ax_val if ax_val is not None else (0.0 if is_ff else 3.0)
-        az_val = _extract_first_float(r"az\s*=\s*([-0-9.]+)", low, 0.0)
-        az = -9.81 if is_ff else (az_val if az_val is not None else 0.0)
+        az_val = _extract_first_float(rf"\baz\s*=\s*{_FLOAT_NUM_RE}(?![a-zA-Z_])", low)
+        if is_ff:
+            az = -9.81
+        elif az_val is not None:
+            az = az_val
+        elif re.search(r"\baz\s*=\s*-\s*g\b", low):
+            az = -9.81
+        else:
+            az = 0.0
         return ParsedPhysicsQuery(
             family="accelerating_tank",
             confidence=0.91,
@@ -262,8 +402,10 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
         )
 
     # 9. Generalized Couette-Poiseuille (Ex 8.4)
-    if any(k in low for k in ["couette", "moving plate", "zero net flow", "recirculat"]):
-        p_val = -3.0 if ("zero net" in low or "zero flow" in low) else (-1.0 if "zero shear" in low else -2.0)
+    if any(k in low for k in ["couette", "moving plate", "upper plate", "plate moves", "zero net flow", "recirculat"]):
+        p_ext = _extract_first_float(rf"\bP\s*=\s*{_FLOAT_NUM_RE}(?![a-zA-Z_])", raw)
+        p_def = -3.0 if ("zero net" in low or "zero flow" in low) else (-1.0 if "zero shear" in low else -2.0)
+        p_val = p_ext if p_ext is not None else p_def
         return ParsedPhysicsQuery(
             family="couette_poiseuille",
             confidence=0.90,
@@ -278,10 +420,10 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
     # 10. Wall slip & Herschel-Bulkley / non-Newtonian
     if any(k in low for k in ["slip", "herschel", "bingham", "yield stress", "non-newtonian", "shear thinning", "plug"]):
         tau_y_def = 3.0 if "plug" in low or "bingham" in low or "herschel" in low else 0.0
-        tau_y_val = _extract_first_float(r"yield[^0-9]*([0-9.]+)", low, tau_y_def)
+        tau_y_val = _extract_first_float(rf"yield[^0-9\n]*{_POS_NUM_RE}", low, tau_y_def)
         tau_y = tau_y_val if tau_y_val is not None else tau_y_def
         ls_def = 0.00025 if "slip" in low else 0.0
-        ls_val = _extract_first_float(r"slip[^0-9]*([0-9.]+)\s*(m|cm|mm)?", low, ls_def)
+        ls_val = _extract_first_float(rf"slip[^0-9\n]*{_POS_NUM_RE}\s*(m|cm|mm)?", low, ls_def)
         ls = ls_val if ls_val is not None else ls_def
         n_val = 0.65 if ("thinning" in low or "herschel" in low) else 1.0
         return ParsedPhysicsQuery(
@@ -304,7 +446,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
 
     # 11. Boundary layer separation / Falkner-Skan
     if any(k in low for k in ["falkner", "blasius"]):
-        beta_ext = _extract_first_float(r"beta\s*=\s*([-0-9.]+)", low, -0.15)
+        beta_ext = _extract_first_float(rf"\bbeta\s*=\s*{_FLOAT_NUM_RE}(?![a-zA-Z_])", low, -0.15)
         beta_val = 0.0 if ("blasius" in low or "flat plate" in low) else (beta_ext if beta_ext is not None else -0.15)
         return ParsedPhysicsQuery(
             family="falkner_skan",
@@ -344,7 +486,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             if "cylinder" in low or "circle" in low:
                 obstacles.append(GeometryPrimitive(type="circle", x=0.22, y=0.50, r=0.11))
             obstacles.append(GeometryPrimitive(type="rect", x0=0.42, y0=0.42, x1=0.52, y1=0.58))
-        re_ext = _extract_first_float(r"re\s*(?:=|of)?\s*([0-9.]+)", low, 105.0)
+        re_ext = _extract_first_float(rf"\bre\s*(?:=|of)?\s*{_POS_NUM_RE}", low, 105.0)
         re_val = re_ext if re_ext is not None else 105.0
         return ParsedPhysicsQuery(
             family="lbm_tunnel",

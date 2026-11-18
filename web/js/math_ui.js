@@ -124,6 +124,36 @@ function formatInlineProse(rawSegment) {
   return safe;
 }
 
+function tokenizeMathSegments(input) {
+  const mathTokens = [];
+  const pushMath = (tex, displayMode) => {
+    const idx = mathTokens.length;
+    mathTokens.push(renderMathSegment(tex, displayMode));
+    return `\u0000MATH_${idx}\u0000`;
+  };
+
+  let tokenized = input.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => pushMath(tex, true));
+  tokenized = tokenized.replace(/\\\[([\s\S]+?)\\\]/g, (_, tex) => pushMath(tex, true));
+  tokenized = tokenized.replace(/\\\(([\s\S]+?)\\\)/g, (_, tex) => pushMath(tex, false));
+  tokenized = tokenized.replace(/(?<!\\)\$(?!\s)([^$\n]+?)(?<!\s)\$/g, (_, tex) => pushMath(tex, false));
+  tokenized = tokenized.replaceAll("\\$", "$");
+  return { tokenized, mathTokens };
+}
+
+function restoreMathSegments(html, mathTokens) {
+  return html.replace(/\u0000MATH_(\d+)\u0000/g, (_, idx) => mathTokens[Number(idx)] || "");
+}
+
+/**
+ * Format a single inline line with XSS-safe Markdown + KaTeX math ($...$, \(...\)) without <p> wrappers.
+ */
+export function formatInlineRichText(text) {
+  const input = String(text ?? "").replaceAll("\u0000", "");
+  if (!input.trim()) return "";
+  const { tokenized, mathTokens } = tokenizeMathSegments(input);
+  return restoreMathSegments(formatInlineProse(tokenized), mathTokens);
+}
+
 /**
  * Format Markdown bold (**...**), italic (*...*), inline code (`...`), bullets, paragraphs,
  * and inline/display KaTeX math ($...$, $$...$$, \(...\), \[...\]) safely (XSS-escaped first).
@@ -132,19 +162,7 @@ export function formatRichText(text) {
   const input = String(text ?? "").replaceAll("\u0000", "");
   if (!input.trim()) return "";
 
-  const mathTokens = [];
-  const pushMath = (tex, displayMode) => {
-    const idx = mathTokens.length;
-    mathTokens.push(renderMathSegment(tex, displayMode));
-    return `\u0000MATH_${idx}\u0000`;
-  };
-
-  // Extract display and inline math before HTML escaping & Markdown formatting
-  let tokenized = input.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => pushMath(tex, true));
-  tokenized = tokenized.replace(/\\\[([\s\S]+?)\\\]/g, (_, tex) => pushMath(tex, true));
-  tokenized = tokenized.replace(/\\\(([\s\S]+?)\\\)/g, (_, tex) => pushMath(tex, false));
-  tokenized = tokenized.replace(/(^|[^\\])\$(?!\s)([^$\n]+?)(?<!\s)\$/g, (_, lead, tex) => `${lead}${pushMath(tex, false)}`);
-  tokenized = tokenized.replaceAll("\\$", "$");
+  const { tokenized, mathTokens } = tokenizeMathSegments(input);
 
   const blocks = tokenized.split(/\n{2,}/);
   const htmlBlocks = blocks
@@ -196,7 +214,7 @@ export function formatRichText(text) {
     .filter(Boolean)
     .join("");
 
-  return htmlBlocks.replace(/\u0000MATH_(\d+)\u0000/g, (_, idx) => mathTokens[Number(idx)] || "");
+  return restoreMathSegments(htmlBlocks, mathTokens);
 }
 
 export function renderAuditBar(auditData) {

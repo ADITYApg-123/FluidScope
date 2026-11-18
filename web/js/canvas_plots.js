@@ -321,7 +321,7 @@ export class CurvePlotEngine {
   _resolveColor(col, fallback) {
     const pal = this._palette();
     if (!col) return fallback || pal.primary;
-    const c = String(col).toLowerCase();
+    const c = String(col).toLowerCase().trim();
     if (c === "primary") return pal.primary;
     if (c === "secondary" || c === "purple") return pal.secondary;
     if (c === "teal") return pal.teal;
@@ -344,6 +344,40 @@ export class CurvePlotEngine {
       if (c === "#9fb3c8" || c === "#7f8ea3") return "#475569";
     }
     return col;
+  }
+
+  _resolveTextColor(col, fallback) {
+    const pal = this._palette();
+    const resolved = this._resolveColor(col, fallback || pal.labelInk);
+    const c = String(resolved || "").toLowerCase().trim();
+    if (this._isDark()) {
+      if (c === "#0072b2" || c === "#1d4ed8" || c === "#1e40af") return pal.primary;
+      if (c === "#d55e00" || c === "#d97706" || c === "#b45309" || c === "#92400e") return pal.amber;
+      if (c === "#b91c1c" || c === "#dc2626" || c === "#e05a47" || c === "#991b1b") return pal.coral;
+      if (c === "#009e73" || c === "#15803d" || c === "#166534") return pal.ok;
+      if (c === "#0f766e") return pal.teal;
+      if (c === "#7c3aed" || c === "#5b21b6") return pal.secondary;
+      if (c === "#475569" || c === "#334155" || c === "#64748b" || c === "#cbd5e1" || c === "#9ca3af") {
+        return pal.tickInk;
+      }
+      if (c === "#0f172a" || c === "#111827" || c === "#000000") return pal.labelInk;
+      return resolved;
+    }
+    if (c === "#d55e00" || c === "#d97706" || c === "#b45309" || c === "#e69f00" || c === "#e6a23c" || c === "#f59e0b") {
+      return "#92400E";
+    }
+    if (c === "#009e73" || c === "#15803d" || c === "#58b368" || c === "#3fb950" || c === "#34d399") {
+      return "#166534";
+    }
+    if (c === "#dc2626" || c === "#b91c1c" || c === "#e05a47" || c === "#f87171") return "#991B1B";
+    if (c === "#0072b2" || c === "#1d4ed8" || c === "#58a6ff" || c === "#38bdf8") return "#005A8D";
+    if (c === "#7c3aed" || c === "#a78bfa") return "#5B21B6";
+    if (c === "#2dd4bf") return "#0F766E";
+    if (c === "#cbd5e1" || c === "#9ca3af" || c === "#94a3b8" || c === "#9fb3c8" || c === "#7f8ea3") {
+      return "#475569";
+    }
+    if (c === "#e2e8f0" || c === "#f1f5f9" || c === "#ffffff") return pal.labelInk;
+    return resolved;
   }
 
   setPlot(spec) {
@@ -484,7 +518,7 @@ export class CurvePlotEngine {
         ctx.strokeStyle = col;
         ctx.lineWidth = 1.5;
         ctx.strokeRect(bx, by, bw, bh);
-        ctx.fillStyle = col;
+        ctx.fillStyle = this._resolveTextColor(this.spec.emptyTone === "primary" ? "primary" : "coral", pal.labelInk);
         ctx.font = '700 13.5px "Space Grotesk", "IBM Plex Sans", sans-serif';
         ctx.textAlign = "center";
         ctx.textBaseline = "alphabetic";
@@ -568,8 +602,8 @@ export class CurvePlotEngine {
         }
         ctx.fillRect(this.pad.left, py1, plotW, Math.max(2, py0 - py1));
         if (hb.label) {
-          ctx.globalAlpha = 0.95;
-          ctx.fillStyle = this._resolveColor(hb.color, pal.amber);
+          ctx.globalAlpha = 0.98;
+          ctx.fillStyle = this._resolveTextColor(hb.color, pal.amber);
           ctx.font = '600 12px "IBM Plex Sans", sans-serif';
           ctx.textAlign = "right";
           ctx.fillText(hb.label, this.pad.left + plotW - 10, (py0 + py1) * 0.5 + 4);
@@ -635,7 +669,7 @@ export class CurvePlotEngine {
       ctx.restore();
       if (m.label) {
         ctx.save();
-        ctx.fillStyle = col;
+        ctx.fillStyle = this._resolveTextColor(m.color, pal.tickInk);
         ctx.font = '600 12px "IBM Plex Mono", monospace';
         const nearRight = mx > this.pad.left + plotW - 105;
         ctx.textAlign = nearRight ? "right" : "left";
@@ -666,7 +700,7 @@ export class CurvePlotEngine {
       ctx.restore();
       if (m.label) {
         ctx.save();
-        ctx.fillStyle = col;
+        ctx.fillStyle = this._resolveTextColor(m.color, pal.amber);
         ctx.font = '600 12px "IBM Plex Mono", monospace';
         ctx.textAlign = "left";
         ctx.textBaseline = "alphabetic";
@@ -728,7 +762,7 @@ export class CurvePlotEngine {
         else ctx.rect(bx, by, tw, th);
         ctx.fill();
         ctx.stroke();
-        ctx.fillStyle = col;
+        ctx.fillStyle = this._resolveTextColor(ann.color, pal.labelInk);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(ann.text, bx + tw * 0.5, by + th * 0.5 + 0.5);

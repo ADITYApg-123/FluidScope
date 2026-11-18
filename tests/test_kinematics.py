@@ -149,3 +149,61 @@ def test_acceleration_local_convective_split_example_3_10_and_steady():
     assert sp_probe["ay_convective"] == pytest.approx(0.5, abs=1e-9)
     assert sp_probe["ay_local"] + sp_probe["ay_convective"] == pytest.approx(sp_probe["ay"], abs=1e-9)
 
+
+def test_safe_parse_velocity_rejects_reserved_parameter_names():
+    with pytest.raises(ValueError, match="reserved"):
+        safe_parse_velocity("x + t", {"t": 5.0})
+    with pytest.raises(ValueError, match="reserved"):
+        safe_parse_velocity("x + a", {"sin": 1.0})
+
+
+def test_stokes_check_flags_point_vortex_singularity_inside_disk():
+    centered = analyze_kinematics(
+        u_str="-y / (x^2 + y^2)",
+        v_str="x / (x^2 + y^2)",
+        x0=1.5,
+        y0=0.0,
+        t0=0.0,
+        t_eval=0.5,
+        loop_center=(0.0, 0.0),
+        loop_radius=0.6,
+    )
+    assert centered["stokes_check"]["singularity_suspected"] is True
+
+    offcenter = analyze_kinematics(
+        u_str="-y / (x^2 + y^2)",
+        v_str="x / (x^2 + y^2)",
+        x0=1.5,
+        y0=0.0,
+        t0=0.0,
+        t_eval=0.5,
+        loop_center=(0.15, 0.1),
+        loop_radius=0.6,
+    )
+    assert offcenter["stokes_check"]["singularity_suspected"] is True
+
+    outside = analyze_kinematics(
+        u_str="-y / (x^2 + y^2)",
+        v_str="x / (x^2 + y^2)",
+        x0=1.5,
+        y0=0.0,
+        t0=0.0,
+        t_eval=0.5,
+        loop_center=(2.0, 2.0),
+        loop_radius=0.5,
+    )
+    assert outside["stokes_check"]["singularity_suspected"] is False
+
+    ex310 = analyze_kinematics(
+        u_str="x / (t + t0)",
+        v_str="v0",
+        params={"t0": 1.0, "v0": 1.0},
+        x0=1.0,
+        y0=0.0,
+        t0=1.0,
+        t_eval=2.0,
+        loop_center=(2.0, 1.0),
+        loop_radius=0.8,
+    )
+    assert ex310["stokes_check"]["singularity_suspected"] is False
+

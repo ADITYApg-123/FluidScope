@@ -144,14 +144,15 @@
 .seg-btn.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #FFFFFF;
+  color: var(--ink-inverse);
   font-weight: 600;
 }
 
 [data-theme="dark"] .seg-btn.active {
-  background: var(--cobalt-soft);
-  border-color: var(--cobalt-border);
-  color: var(--cobalt-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink-inverse);
+  font-weight: 600;
 }
 
 /* Legend Strip & Okabe-Ito Swatches */

@@ -3,7 +3,7 @@
  * Grounded strictly to active solver residuals across Labs 2A-4D, AI Translator, and post-submit Quiz 05.
  */
 import { ROCKER_DEFS, bus, loadLLMConfig, state } from "../core/store.js";
-import { formatRichText, renderTex } from "../math_ui.js";
+import { formatInlineRichText, formatRichText, renderTex } from "../math_ui.js";
 
 const VALID_FAMILIES = new Set([
   "kinematics_equation",
@@ -155,7 +155,7 @@ function esc(str) {
 }
 
 function clampNegZeroText(str) {
-  return String(str ?? "").replace(/(^|[\s=:(\[,])-0\.(0+)(?!\d)/g, "$10.$2");
+  return String(str ?? "").replace(/(^|[\s=:(\[,${])-0\.(0+)(?!\d)/g, "$10.$2");
 }
 
 function clampNum(v, lo, hi, def) {
@@ -279,9 +279,10 @@ function synthesizeContextFromState() {
   return { parsed: null, solverData: null };
 }
 
-function applyRichAndKatex(containerEl, rawText) {
+function applyRichAndKatex(containerEl, rawText, inline = false) {
   if (!containerEl) return;
-  containerEl.innerHTML = formatRichText(rawText || "");
+  const clean = rawText || "";
+  containerEl.innerHTML = inline ? formatInlineRichText(clean) : formatRichText(clean);
   if (typeof document.createTreeWalker !== "function" || typeof document.createDocumentFragment !== "function") {
     return;
   }
@@ -472,7 +473,7 @@ export function initCoachDrawer(ctx = {}) {
     if (facts.length) {
       for (const f of facts) {
         const li = document.createElement("li");
-        li.textContent = clampNegZeroText(f);
+        applyRichAndKatex(li, clampNegZeroText(f), true);
         ul.appendChild(li);
       }
     } else {
@@ -511,7 +512,7 @@ export function initCoachDrawer(ctx = {}) {
     const cfg = loadLLMConfig();
     state.llmConfig = cfg;
 
-    replyEl.innerHTML = `<div class="diag-cell" style="color:var(--ink-secondary);font-size:12px;">Inspecting active solver residuals...</div>`;
+    replyEl.innerHTML = `<div class="diag-cell coach-loading" style="color:var(--ink-secondary);font-size:12px;">Inspecting active solver residuals...</div>`;
     try {
       const reply = await postFn(
         "/api/coach",

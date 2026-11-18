@@ -106,3 +106,50 @@ def test_audit_contexts_and_twists_metadata():
         assert tw["endpoint"].startswith("/api/")
         assert isinstance(tw["payload"], dict)
         assert 0 <= tw["correct_index"] < len(tw["options"])
+
+
+def test_favicon_and_api_edge_contracts():
+    fav = client.get("/favicon.ico")
+    assert fav.status_code == 200
+    assert len(fav.content) > 0
+
+    bad_kin = client.post(
+        "/api/kinematics",
+        json={"u_str": "x + t", "v_str": "0", "params": {"t": 5.0}},
+    )
+    assert bad_kin.status_code == 400
+    assert bad_kin.json()["ok"] is False
+    assert "reserved" in bad_kin.json()["error"].lower()
+
+    obs_resp = client.post(
+        "/api/lbm_tunnel",
+        json={
+            "reynolds": 80.0,
+            "n_steps": 120,
+            "obstacles": [{"type": "circle", "x": 0.25, "y": 0.5, "r": 0.1}],
+        },
+    )
+    assert obs_resp.status_code == 200
+    obs_data = obs_resp.json()["data"]
+    assert obs_data["preset"] == "custom"
+    assert obs_data["stable"] is True
+
+    twists = client.get("/api/twists").json()["data"]
+    expected = {
+        "TWIST-01": "kinematics_equation",
+        "TWIST-03": "vortex_flow",
+        "TWIST-06": "accelerating_tank",
+        "TWIST-08": "couette_poiseuille",
+        "TWIST-11": "sudden_expansion",
+    }
+    for tw in twists:
+        if tw["id"] in expected:
+            r = client.post(
+                "/api/parse_and_solve",
+                json={"text": tw["prompt"], "llm_config": {"provider": "offline"}},
+            )
+            assert r.status_code == 200, f"{tw['id']} crashed: {r.text}"
+            body = r.json()
+            assert body["ok"] is True
+            assert body["data"]["parsed"]["family"] == expected[tw["id"]]
+            assert isinstance(body["data"]["solver_data"], dict)

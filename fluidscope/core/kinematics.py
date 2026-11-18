@@ -68,8 +68,11 @@ def safe_parse_velocity(
     local_dict = dict(_SAFE_FUNCS)
     if params:
         for pname in params:
-            if not pname.isidentifier() or pname in _SAFE_FUNCS:
-                continue
+            if not isinstance(pname, str) or not pname.isidentifier() or pname in _SAFE_FUNCS:
+                raise ValueError(
+                    f"Invalid or reserved parameter name '{pname}'. "
+                    "Parameter names cannot shadow built-in variables (x, y, t) or math functions."
+                )
             sym = sp.Symbol(pname, real=True)
             param_map[pname] = sym
             local_dict[pname] = sym
@@ -383,11 +386,20 @@ def analyze_kinematics(
     YY = lcy + RR * np.sin(TT)
     WW = vort_fn(XX, YY, float(t_eval))
     finite_mask = np.isfinite(WW) & (np.abs(WW) < 1e4)
-    stokes_singularity_inside = not bool(np.all(finite_mask))
+    UU_disk = u_fn(XX, YY, float(t_eval))
+    VV_disk = v_fn(XX, YY, float(t_eval))
+    vel_finite = np.isfinite(UU_disk) & np.isfinite(VV_disk) & (np.abs(UU_disk) < 1e4) & (np.abs(VV_disk) < 1e4)
     if np.any(finite_mask):
         gamma_area = float(np.sum(np.where(finite_mask, WW, 0.0) * RR) * dr * dt_q)
     else:
         gamma_area = 0.0
+    discrepancy = valid_loop and abs(gamma_line - gamma_area) > max(0.05, 0.08 * max(abs(gamma_line), 1.0))
+    center_u = _safe_eval_point(u_fn, lcx, lcy, t_eval)
+    center_v = _safe_eval_point(v_fn, lcx, lcy, t_eval)
+    center_singular = (center_u is None) or (center_v is None) or (abs(center_u) > 1e4) or (abs(center_v) > 1e4)
+    stokes_singularity_inside = bool(
+        (not np.all(finite_mask)) or (not np.all(vel_finite)) or center_singular or discrepancy
+    )
 
     # Point telemetry at (x0, y0, t_eval)
     pt_u = _safe_eval_point(u_fn, x0, y0, t_eval)
