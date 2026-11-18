@@ -116,36 +116,178 @@ function applyAssumptionToActiveLab(key) {
   return false;
 }
 
+const PERTURB_KEYS = ROCKER_DEFS
+  .filter(([, , kind]) => kind === "perturb")
+  .map(([key]) => key);
+
+const LAB_PERTURB_APPLICABILITY = {
+  "02:kinematics": ["inviscid"],
+  "02:vortex": ["inviscid"],
+  "02:vessel": [],
+  "02:potential": ["inviscid"],
+  "03:separation": ["adverse_pressure_gradient"],
+  "03:couette": ["adverse_pressure_gradient", "newtonian"],
+  "03:twolayer": [],
+  "03:slip_hb": ["no_slip", "newtonian"],
+  "04:lbm": [],
+  "04:jump": ["irreversible_jump"],
+  "04:expansion": ["irreversible_jump"],
+  "04:tank": ["inertial_frame"],
+};
+
+function getApplicablePerturbKeys() {
+  if (state.activeView === "05" && !state.s5?.checked) {
+    return new Set();
+  }
+  if (state.activeView === "01" || state.activeView === "05" || state.activeView === "overview") {
+    return new Set(PERTURB_KEYS);
+  }
+  const bay = state.activeBay;
+  const sub =
+    bay === "02"
+      ? state.bay02Mode
+      : bay === "03"
+      ? state.bay03Mode
+      : bay === "04"
+      ? state.bay04Mode
+      : "";
+  const list = LAB_PERTURB_APPLICABILITY[`${bay}:${sub}`];
+  return new Set(Array.isArray(list) ? list : []);
+}
+
 function renderRockers() {
+  const derivedRow = document.getElementById("assumptionDerivedRow");
   const container = document.getElementById("assumptionRockers");
-  if (!container) return;
-  container.innerHTML = "";
-  let activeCount = 0;
+  const summaryPill = document.getElementById("assumptionSummaryPill");
+  const warnBox = document.getElementById("assumptionWarnings");
+  const isQuizLocked = state.activeView === "05" && !state.s5?.checked;
+  const applicableKeys = isQuizLocked ? new Set() : getApplicablePerturbKeys();
 
-  for (const [key, label, , hazardFlag] of ROCKER_DEFS) {
-    const val = state.assumptions[key];
-    const isTrapFlag = hazardFlag ? val : !val;
-    if (val) activeCount += 1;
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `rocker-btn ${val ? "on" : ""} ${isTrapFlag ? "broken" : ""}`;
-    btn.innerHTML = `<span>${label}</span><span class="led ${isTrapFlag ? "led-coral" : "led-ok"}"></span>`;
-    btn.onclick = () => {
-      state.assumptions[key] = !state.assumptions[key];
-      if (key === "inviscid" && state.assumptions.inviscid) {
-        state.assumptions.irreversible_jump = false;
-      }
-      renderRockers();
-      refreshAudit();
-      applyAssumptionToActiveLab(key);
-    };
-    container.appendChild(btn);
+  if (isQuizLocked && warnBox) {
+    warnBox.innerHTML = "";
   }
 
-  const summaryPill = document.getElementById("assumptionSummaryPill");
+  let brokenCount = 0;
+  for (const [key, , , hazardFlag] of ROCKER_DEFS) {
+    const val = Boolean(state.assumptions[key]);
+    if (hazardFlag ? val : !val) brokenCount += 1;
+  }
+
+  if (derivedRow) {
+    derivedRow.innerHTML = "";
+    for (const [key, label, kind, hazardFlag] of ROCKER_DEFS) {
+      if (kind !== "derived") continue;
+      const badge = document.createElement("span");
+      const led = document.createElement("span");
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "derived-label";
+      labelSpan.textContent = label;
+
+      if (isQuizLocked) {
+        badge.className = "derived-badge derived-locked";
+        badge.title = "Submit prediction first";
+        led.className = "led led-dim";
+        badge.appendChild(led);
+        badge.appendChild(labelSpan);
+      } else {
+        const val = Boolean(state.assumptions[key]);
+        const isBroken = hazardFlag ? val : !val;
+        const cause = String(state.assumptionCauses?.[key] || "").trim();
+        badge.className = `derived-badge ${isBroken ? "derived-broken" : "derived-ok"}`;
+        badge.title = cause
+          ? `Derived from solver (${label}: ${val ? "Yes" : "No"} — ${cause})`
+          : `Derived from solver (${label}: ${val ? "Yes" : "No"}) — read-only`;
+        led.className = `led ${isBroken ? "led-coral" : "led-ok"}`;
+        badge.appendChild(led);
+        badge.appendChild(labelSpan);
+        if (cause) {
+          const causeSpan = document.createElement("span");
+          causeSpan.className = "derived-cause";
+          causeSpan.textContent = cause;
+          badge.appendChild(causeSpan);
+        }
+      }
+      derivedRow.appendChild(badge);
+    }
+    if (isQuizLocked) {
+      const lockNote = document.createElement("span");
+      lockNote.className = "derived-cause derived-lock-note";
+      lockNote.textContent = "Submit prediction first";
+      derivedRow.appendChild(lockNote);
+    }
+  }
+
+  if (container) {
+    container.innerHTML = "";
+    for (const [key, label, kind, hazardFlag] of ROCKER_DEFS) {
+      if (kind !== "perturb") continue;
+      const val = Boolean(state.assumptions[key]);
+      const isBroken = hazardFlag ? val : !val;
+      const applicable = applicableKeys.has(key);
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+
+      const labelSpan = document.createElement("span");
+      labelSpan.textContent = label;
+      const led = document.createElement("span");
+
+      if (isQuizLocked) {
+        btn.className = "rocker-btn rocker-na rocker-locked";
+        btn.disabled = true;
+        btn.title = "Submit prediction first";
+        led.className = "led led-dim";
+      } else {
+        const ledClass = isBroken ? "led-coral" : hazardFlag ? "led-dim" : "led-ok";
+        led.className = `led ${ledClass}`;
+        btn.className = [
+          "rocker-btn",
+          val ? "on" : "",
+          isBroken ? "broken" : "",
+          !applicable ? "rocker-na" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        if (!applicable) {
+          btn.disabled = true;
+          btn.title = "Not exposed as a perturbation toggle in this solver";
+        } else {
+          btn.disabled = false;
+          btn.title = hazardFlag
+            ? val
+              ? `${label} active — click to clear`
+              : `${label} inactive — click to trigger`
+            : val
+            ? `${label} holds — click to perturb`
+            : `${label} broken — click to restore`;
+          btn.onclick = () => {
+            if (state.activeView === "05" && !state.s5?.checked) return;
+            state.assumptions[key] = !state.assumptions[key];
+            if (key === "inviscid" && state.assumptions.inviscid) {
+              state.assumptions.irreversible_jump = false;
+            }
+            renderRockers();
+            refreshAudit();
+            applyAssumptionToActiveLab(key);
+          };
+        }
+      }
+
+      btn.appendChild(labelSpan);
+      btn.appendChild(led);
+      container.appendChild(btn);
+    }
+  }
+
   if (summaryPill) {
-    summaryPill.textContent = `${activeCount}/${ROCKER_DEFS.length} On`;
+    if (isQuizLocked) {
+      summaryPill.textContent = "Locked";
+      summaryPill.title = "Submit prediction first to unlock physics assumption audit";
+    } else {
+      summaryPill.textContent = brokenCount > 0 ? `${brokenCount} Broken` : "0 Broken";
+      summaryPill.title = `${brokenCount} broken assumption(s); ${applicableKeys.size} perturbation toggle(s) active`;
+    }
   }
 }
 
@@ -339,27 +481,37 @@ function makeBayCtx() {
   };
 }
 
+function closeCoachDrawerHost() {
+  const host = document.getElementById("coachDrawerHost");
+  if (host) {
+    host.setAttribute("aria-hidden", "true");
+    host.classList.remove("open");
+  }
+  bus.emit("coach:close");
+}
+
 function openStation(bayId) {
   cancelLabPending();
   clearSecondaryControls();
+  state.equationContext = "ns_x";
+  state.assumptionCauses = { steady: "", incompressible: "", irrotational: "" };
+  state.activeCoachContext = { parsedQuery: null, solverData: null, suggestedPrompt: "" };
+  flowEngine.setInteractiveHandles?.([], null);
+  flowEngine.setDrawMode?.(null, null);
+  closeCoachDrawerHost();
+  const warnBox = document.getElementById("assumptionWarnings");
+  if (warnBox) warnBox.innerHTML = "";
   const bayCtx = makeBayCtx();
   state.pendingNavPayload = null;
 
+  if (bayId === "05" && !state.s5?.checked) {
+    renderRockers();
+  }
+
   if (bayId === "01") renderStation01(bayCtx);
   else if (bayId === "02") renderStation02(bayCtx);
-  else if (bayId === "03") {
-    Object.assign(state.assumptions, {
-      steady: true,
-      incompressible: true,
-      inviscid: false,
-      irrotational: false,
-      inertial_frame: true,
-      irreversible_jump: false,
-    });
-    renderRockers();
-    refreshAudit("ns_x");
-    renderStation03(bayCtx);
-  } else if (bayId === "04") renderStation04(bayCtx);
+  else if (bayId === "03") renderStation03(bayCtx);
+  else if (bayId === "04") renderStation04(bayCtx);
   else if (bayId === "05") renderStation05(bayCtx);
 }
 
@@ -398,6 +550,9 @@ function openView(view) {
 
   if (view === "overview") {
     cancelLabPending();
+    flowEngine.setInteractiveHandles?.([], null);
+    flowEngine.setDrawMode?.(null, null);
+    closeCoachDrawerHost();
     overviewEl.classList.remove("hidden");
     workbenchEl.classList.add("hidden");
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -462,11 +617,179 @@ bus.on("plot:hover", (payload) => {
   }
 });
 
-bus.on("solver:updated", ({ parsedQuery = null, solverData = null, suggestedPrompt = "" } = {}) => {
+const BAY_SUB_TO_FAMILY = {
+  "02:kinematics": "kinematics_equation",
+  "02:vortex": "vortex_flow",
+  "02:vessel": "rotating_vessel",
+  "02:potential": "potential_superposition",
+  "03:separation": "bl_separation",
+  "03:couette": "couette_poiseuille",
+  "03:twolayer": "two_layer_poiseuille",
+  "03:slip_hb": "slip_herschel_bulkley",
+  "04:lbm": "lbm_tunnel",
+  "04:jump": "hydraulic_jump",
+  "04:expansion": "sudden_expansion",
+  "04:tank": "accelerating_tank",
+};
+
+const FAMILY_FALLBACK_META = {
+  kinematics_equation: {
+    concept_twist: "Unsteady flows separate streamline, pathline, and streakline; nonzero divergence violates incompressibility.",
+    broken_shortcut: "Assuming streamlines equal particle trajectories or streaklines when ∂V/∂t ≠ 0.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 3.3.3 (Example 3.10)",
+  },
+  vortex_flow: {
+    concept_twist: "Radial pressure balances centrifugal acceleration; Bernoulli applies across streamlines only when Ωz = 0.",
+    broken_shortcut: "Applying constant-head Bernoulli across streamlines inside a rotational forced vortex.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 4.5 (Eq. 4.43–4.60)",
+  },
+  rotating_vessel: {
+    concept_twist: "Open rotating cylinder spills liquid at the top rim before uncovering a dry center base.",
+    broken_shortcut: "Assuming trapped fluid volume equals initial fill volume once the paraboloid reaches the rim.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 4.5 (Example 4.8)",
+  },
+  potential_superposition: {
+    concept_twist: "Superposing uniform stream, doublet, and circulation generates Kutta–Joukowski lift with zero D'Alembert drag.",
+    broken_shortcut: "Expecting stagnation points to remain on the cylinder wall when |Γ| > 4πU∞a.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 7 (Potential Flow & Magnus Effect)",
+  },
+  falkner_skan: {
+    concept_twist: "Adverse Hartree β < 0 forces positive wall curvature and an inflection point ahead of separation at β ≈ -0.1988.",
+    broken_shortcut: "Assuming boundary-layer velocity profiles stay monotonic without an inflection point under dp/dx > 0.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 9.6 (Falkner–Skan & Eq. 9.42)",
+  },
+  bl_separation: {
+    concept_twist: "Adverse pressure gradient (dp/dx > 0) forces positive wall curvature and boundary-layer reversal past Λ = -12.",
+    broken_shortcut: "Relying on inviscid potential flow (D'Alembert's paradox) which misses wake separation and pressure drag.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 9.6 (Eq. 9.41–9.42, Fig. 9.5)",
+  },
+  couette_poiseuille: {
+    concept_twist: "Moving-wall Couette shear competes with opposing pressure gradient, reversing lower-wall shear for P < -1 and reaching Q = 0 at P = -3.",
+    broken_shortcut: "Assuming a linear Couette velocity profile when a nonzero axial pressure gradient is present.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 8.3 (Example 8.4, Eq. 8.42)",
+  },
+  two_layer_poiseuille: {
+    concept_twist: "At an immiscible liquid interface, velocity and shear stress τ = μ(du/dy) match, producing a slope kink and off-center peak.",
+    broken_shortcut: "Equating velocity gradients du1/dy = du2/dy across fluids of unequal viscosity.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 8.3 (Example 8.2)",
+  },
+  slip_herschel_bulkley: {
+    concept_twist: "Yield-stress fluids move as a rigid plug where |τ| ≤ τ_y while Navier wall slip adds nonzero wall speed u_w.",
+    broken_shortcut: "Applying classical no-slip parabolic Poiseuille flow to slip or yield-stress Herschel–Bulkley fluids.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 1.6 & Ch. 8",
+  },
+  hydraulic_jump: {
+    concept_twist: "Hydraulic jumps conserve integral specific force Fs rather than specific energy Es due to turbulent roller dissipation.",
+    broken_shortcut: "Setting Es1 = Es2 across a hydraulic jump and ignoring irreversible eddy head loss hj.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 12.4 (Example 12.11, Eq. 12.48)",
+  },
+  sudden_expansion: {
+    concept_twist: "Annular corner eddies hold shoulder pressure p' ≈ p1 across an abrupt expansion, reducing pressure recovery via Borda–Carnot loss.",
+    broken_shortcut: "Using ideal lossless Bernoulli Δp = ½ρ(V1² - V2²) across a sudden pipe expansion.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 11.5 (Eq. 11.18–11.23)",
+  },
+  accelerating_tank: {
+    concept_twist: "Isobars tilt perpendicular to effective body force g_eff = g - a_frame; in free fall (az = -g), g_eff = 0 halts bottom orifice flow.",
+    broken_shortcut: "Applying static Torricelli efflux v = √(2gh) inside an accelerating or free-falling tank.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 2.9 (Eq. 2.86–2.88, p. 97–99)",
+  },
+  lbm_tunnel: {
+    concept_twist: "Viscous D2Q9 Lattice–Boltzmann flow sheds alternating Kármán vortices unless stabilized by geometry such as a wake splitter.",
+    broken_shortcut: "Assuming steady symmetric potential streamlines behind a bluff cylinder at Re ~ 100.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 10 (Unsteady Viscous Wake & LBM)",
+  },
+  unsupported_3d: {
+    concept_twist: "3D compressible and turbomachinery flows fall outside built 2D/1D incompressible exact solvers.",
+    broken_shortcut: "Extrapolating 2D incompressible Bernoulli across 3D shocks or rotating impeller passages.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 14 & Ch. 16",
+  },
+};
+
+const VALID_PHYSICS_FAMILIES = new Set(Object.keys(FAMILY_FALLBACK_META));
+
+function sanitizeObstacles(raw) {
+  if (!Array.isArray(raw)) return [];
+  const allowed = new Set(["circle", "rect", "splitter", "step"]);
+  return raw.filter((o) => o && typeof o === "object" && allowed.has(o.type));
+}
+
+function buildParsedQueryFallback(eventPayload = {}) {
+  const pq = eventPayload?.parsedQuery;
+  const bay = String(eventPayload?.bay || state.activeBay || "");
+  const sub = String(
+    eventPayload?.sub ||
+      (bay === "02"
+        ? state.bay02Mode
+        : bay === "03"
+        ? state.bay03Mode
+        : bay === "04"
+        ? state.bay04Mode
+        : "")
+  );
+  const mappedFamily =
+    bay === "03" && sub === "separation"
+      ? state.s3?.use_falkner_skan
+        ? "falkner_skan"
+        : "bl_separation"
+      : BAY_SUB_TO_FAMILY[`${bay}:${sub}`];
+
+  const candidateFamily = pq?.family || eventPayload?.family || mappedFamily || "kinematics_equation";
+  const family = VALID_PHYSICS_FAMILIES.has(candidateFamily)
+    ? candidateFamily
+    : mappedFamily || "kinematics_equation";
+  const meta = FAMILY_FALLBACK_META[family] || FAMILY_FALLBACK_META.kinematics_equation;
+
+  const rawConf = Number(pq?.confidence);
+  const confidence = Number.isFinite(rawConf) ? Math.max(0, Math.min(1, rawConf)) : 1.0;
+
+  const srcAssumptions =
+    pq?.assumptions && typeof pq.assumptions === "object" && !Array.isArray(pq.assumptions)
+      ? pq.assumptions
+      : state.assumptions;
+  const assumptions = {};
+  for (const [k, v] of Object.entries(srcAssumptions || {})) {
+    assumptions[k] = Boolean(v);
+  }
+
+  const rawParams =
+    pq?.params && typeof pq.params === "object" && !Array.isArray(pq.params)
+      ? pq.params
+      : eventPayload?.payload && typeof eventPayload.payload === "object" && !Array.isArray(eventPayload.payload)
+      ? eventPayload.payload
+      : {};
+
+  const rawObstacles =
+    Array.isArray(pq?.obstacles)
+      ? pq.obstacles
+      : Array.isArray(eventPayload?.obstacles)
+      ? eventPayload.obstacles
+      : Array.isArray(rawParams?.obstacles)
+      ? rawParams.obstacles
+      : [];
+
+  return {
+    family,
+    confidence,
+    parser_mode: String(pq?.parser_mode || "").trim() || "live_lab",
+    assumptions,
+    params: { ...rawParams },
+    obstacles: sanitizeObstacles(rawObstacles),
+    concept_twist: String(pq?.concept_twist || "").trim() || meta.concept_twist,
+    broken_shortcut: String(pq?.broken_shortcut || "").trim() || meta.broken_shortcut,
+    textbook_ref: String(pq?.textbook_ref || "").trim() || meta.textbook_ref,
+    unsupported_reason: pq?.unsupported_reason ?? null,
+    raw_query:
+      String(pq?.raw_query || "").trim() ||
+      `Live ${family.replaceAll("_", " ")} (${meta.textbook_ref})`,
+  };
+}
+
+bus.on("solver:updated", (eventPayload = {}) => {
+  const parsedQuery = buildParsedQueryFallback(eventPayload);
   state.activeCoachContext = {
     parsedQuery,
-    solverData,
-    suggestedPrompt,
+    solverData: eventPayload?.solverData ?? null,
+    suggestedPrompt: String(eventPayload?.suggestedPrompt || ""),
   };
 });
 
