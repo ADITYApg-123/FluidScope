@@ -1,52 +1,415 @@
 /**
  * Station 04: Conservation Traps (Ch. 2.9, 11.5, 12.4) & Live Numba 2D D2Q9 LBM Tunnel.
+ * Wave 1 — Agent D: single top-strip lab switching (no duplicate 2x2 switcher),
+ * paired tabular-nums inputs + unit tags + fmtNum, 4A interactive obstacle drawing
+ * (Circle / Rect / Splitter / Clear -> preset:"custom"), step scrubber (200/450/700),
+ * |V| vs Ωz colormap toggle, 4B Fs(h), 4C pipe EGL/HGL, 4D Free-Fall sequence + efflux gauge,
+ * collapsible Full Diagnostics, and ParsedPhysicsQuery coach context emission.
  */
-import {
-  buildHydraulicJumpScene,
-  buildSuddenExpansionScene,
-  buildAccelTankScene,
-} from "./scene_mapper.js";
+import { fmtNum } from "../core/color_scales.js";
+import { renderTex } from "../math_ui.js";
+import { displaySolvedFamily } from "./scene_mapper.js";
+
+const CONSERVATION_META = {
+  lbm_tunnel: {
+    concept_twist:
+      "Viscous D2Q9 Lattice–Boltzmann flow sheds alternating Kármán vortices unless stabilized by geometry such as a wake splitter.",
+    broken_shortcut:
+      "Assuming steady symmetric potential streamlines behind a bluff cylinder at Re ~ 100.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 10 (Unsteady Viscous Wake & LBM)",
+  },
+  hydraulic_jump: {
+    concept_twist:
+      "Hydraulic jumps conserve integral specific force Fs rather than specific energy Es due to turbulent roller dissipation.",
+    broken_shortcut:
+      "Setting Es1 = Es2 across a hydraulic jump and ignoring irreversible eddy head loss hj.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 12.4 (Example 12.11, Eq. 12.48)",
+  },
+  sudden_expansion: {
+    concept_twist:
+      "Annular corner eddies hold shoulder pressure p' ≈ p1 across an abrupt expansion, reducing pressure recovery via Borda–Carnot loss.",
+    broken_shortcut:
+      "Using ideal lossless Bernoulli Δp = ½ρ(V1² - V2²) across a sudden pipe expansion.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 11.5 (Eq. 11.18–11.23)",
+  },
+  accelerating_tank: {
+    concept_twist:
+      "Isobars tilt perpendicular to effective body force g_eff = g - a_frame; in free fall (az = -g), g_eff = 0 halts bottom orifice flow.",
+    broken_shortcut:
+      "Applying static Torricelli efflux v = √(2gh) inside an accelerating or free-falling tank.",
+    textbook_ref: "Som, Biswas & Chakraborty Ch. 2.9 (Eq. 2.86–2.88, p. 97–99)",
+  },
+};
+
+let activeAnimToken = 0;
+let lastSolvedS4 = { family: null, data: null };
+
+function fmt(v, d = 3) {
+  if (v === null || v === undefined || v === "") return "-";
+  return fmtNum(v, d);
+}
+
+function roundDec(v, d = 2) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  const f = Math.pow(10, d);
+  const r = Math.round(n * f) / f;
+  return Object.is(r, -0) ? 0 : r;
+}
+
+function clamp(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function finiteOr(val, fallback) {
+  if (val === null || val === undefined || val === "") return fallback;
+  const n = Number(val);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function prefersReducedMotion() {
+  try {
+    return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
+  } catch (_) {
+    return false;
+  }
+}
+
+function stopActiveAnimations() {
+  activeAnimToken += 1;
+}
+
+function sanitizeObstacle(ob) {
+  if (!ob || typeof ob !== "object") return null;
+  const t = String(ob.type || "").toLowerCase();
+  if (!["circle", "rect", "splitter", "step"].includes(t)) return null;
+  if (t === "circle") {
+    return {
+      type: "circle",
+      x: roundDec(clamp(finiteOr(ob.x, 0.25), 0.02, 0.95), 4),
+      y: roundDec(clamp(finiteOr(ob.y, 0.5), 0.05, 0.95), 4),
+      r: roundDec(clamp(finiteOr(ob.r, 0.1), 0.03, 0.35), 4),
+    };
+  }
+  const x0 = roundDec(clamp(finiteOr(ob.x0, 0.3), 0.02, 0.95), 4);
+  const y0 = roundDec(clamp(finiteOr(ob.y0, 0.45), 0.02, 0.95), 4);
+  const x1 = roundDec(clamp(finiteOr(ob.x1, 0.55), Math.max(0.05, x0 + 0.01), 0.98), 4);
+  const y1 = roundDec(clamp(finiteOr(ob.y1, 0.55), Math.max(0.05, y0 + 0.01), 0.98), 4);
+  return { type: t, x0, y0, x1, y1 };
+}
+
+function sanitizeObstaclesList(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(sanitizeObstacle).filter(Boolean);
+}
+
+function unwrapNavPayload(navPayload) {
+  if (!navPayload || typeof navPayload !== "object") return null;
+  const inner =
+    navPayload.payload && typeof navPayload.payload === "object"
+      ? navPayload.payload
+      : navPayload;
+  if (inner.params && typeof inner.params === "object") {
+    return {
+      ...inner.params,
+      _family: inner.family || navPayload.family,
+      _obstacles: inner.obstacles ?? navPayload.obstacles,
+    };
+  }
+  return {
+    ...inner,
+    _family: inner.family || navPayload.family,
+    _obstacles: inner.obstacles ?? navPayload.obstacles,
+  };
+}
+
+function applyIncomingNavPayload(ctx) {
+  const np = unwrapNavPayload(ctx.navPayload);
+  if (!np) return;
+  ctx.navPayload = null;
+
+  const { state } = ctx;
+  const m = state.bay04Mode;
+  const p = state.s4;
+  if (!p) return;
+
+  if (m === "lbm") {
+    p.lbmDrawTool = null;
+    const incomingObs = Array.isArray(np._obstacles)
+      ? np._obstacles
+      : Array.isArray(np.obstacles)
+      ? np.obstacles
+      : null;
+    if (incomingObs && incomingObs.length > 0) {
+      p.customObstacles = sanitizeObstaclesList(incomingObs);
+      p.lbmPreset = "custom";
+    } else if (typeof np.preset === "string" && np.preset.trim()) {
+      p.lbmPreset = np.preset.trim();
+      p.customObstacles = p.lbmPreset === "custom" ? [] : null;
+    }
+    p.reynolds = clamp(roundDec(finiteOr(np.reynolds, p.reynolds), 0), 25, 160);
+    if (Number.isFinite(Number(np.n_steps))) {
+      p.nSteps = Math.round(clamp(Number(np.n_steps), 150, 800));
+    }
+  } else if (m === "jump") {
+    p.jumpWidth = clamp(roundDec(finiteOr(np.width, p.jumpWidth), 2), 0.5, 25.0);
+    p.jumpV1 = clamp(roundDec(finiteOr(np.v1, p.jumpV1), 2), 0.5, 20.0);
+    if ((np.h1 === null || np.h1 === undefined) && Number(np.discharge) > 0) {
+      p.jumpH1 = roundDec(Number(np.discharge) / (p.jumpWidth * p.jumpV1), 4);
+    } else if (Number(np.h1) > 0) {
+      p.jumpH1 = clamp(roundDec(Number(np.h1), 4), 0.05, 5.0);
+    }
+  } else if (m === "expansion") {
+    p.expD1 = clamp(finiteOr(np.D1, p.expD1), 0.02, 2.0);
+    p.expD2 = clamp(finiteOr(np.D2, p.expD2), p.expD1 * 1.1, 8.0);
+    p.expV1 = clamp(roundDec(finiteOr(np.V1, p.expV1), 1), 0.2, 20.0);
+  } else if (m === "tank") {
+    p.tankAx = clamp(roundDec(finiteOr(np.ax, p.tankAx), 2), -6.0, 6.0);
+    p.tankAz = clamp(roundDec(finiteOr(np.az, p.tankAz), 2), -9.81, 5.0);
+  }
+}
+
+function pairedFieldHtml({
+  idBase,
+  paramName,
+  label,
+  unit,
+  min,
+  max,
+  step,
+  value,
+  dec = 2,
+  fullWidth = false,
+}) {
+  const numVal = fmt(value, dec);
+  return `
+    <div class="field-group slider-pair"${fullWidth ? ' style="grid-column: 1 / -1;"' : ""}>
+      <div class="slider-label-row">
+        <span>${label}</span>
+        <span class="slider-input-wrap">
+          <input
+            type="number"
+            class="num-input"
+            id="num${idBase}"
+            data-param="${paramName}"
+            name="${paramName}"
+            min="${min}"
+            max="${max}"
+            step="${step}"
+            value="${numVal}"
+            aria-label="${label} (${unit})"
+          />
+          <span class="unit-tag">${unit}</span>
+        </span>
+      </div>
+      <input
+        type="range"
+        id="rng${idBase}"
+        data-param="${paramName}"
+        min="${min}"
+        max="${max}"
+        step="${step}"
+        value="${value}"
+        aria-label="${label} slider"
+      />
+    </div>
+  `;
+}
+
+function bindPairedControl({
+  idBase,
+  obj,
+  key,
+  dec = 2,
+  clampMin = -Infinity,
+  clampMax = Infinity,
+  getVal,
+  setVal,
+  onAfterChange,
+}) {
+  const rng = document.getElementById(`rng${idBase}`);
+  const num = document.getElementById(`num${idBase}`);
+  if (!rng || !num) return;
+
+  const readModel = () => (typeof getVal === "function" ? getVal() : obj[key]);
+  const writeModel = (v) => {
+    if (typeof setVal === "function") setVal(v);
+    else obj[key] = v;
+  };
+
+  const syncSliderBounds = (val) => {
+    const rMin = parseFloat(rng.min);
+    const rMax = parseFloat(rng.max);
+    if (Number.isFinite(rMin) && val < rMin) rng.min = String(roundDec(val, dec));
+    if (Number.isFinite(rMax) && val > rMax) rng.max = String(roundDec(val, dec));
+  };
+
+  rng.oninput = (e) => {
+    const raw = parseFloat(e.target.value);
+    if (!Number.isFinite(raw)) return;
+    const val = roundDec(raw, dec);
+    writeModel(val);
+    num.value = fmt(val, dec);
+    onAfterChange?.(val, "range");
+  };
+
+  num.oninput = (e) => {
+    const raw = parseFloat(e.target.value);
+    if (!Number.isFinite(raw)) return;
+    const clamped = clamp(raw, clampMin, clampMax);
+    writeModel(clamped);
+    syncSliderBounds(clamped);
+    rng.value = String(clamped);
+    onAfterChange?.(clamped, "number-input");
+  };
+
+  num.onchange = () => {
+    const raw = parseFloat(num.value);
+    const cur = readModel();
+    const val = Number.isFinite(raw) ? clamp(raw, clampMin, clampMax) : cur;
+    const clean = roundDec(val, dec);
+    writeModel(clean);
+    syncSliderBounds(clean);
+    rng.value = String(clean);
+    num.value = fmt(clean, dec);
+    onAfterChange?.(clean, "number-commit");
+  };
+}
+
+function syncPairedValues(idBase, val, dec = 2) {
+  const rng = document.getElementById(`rng${idBase}`);
+  const num = document.getElementById(`num${idBase}`);
+  const clean = roundDec(val, dec);
+  if (rng) {
+    const rMin = parseFloat(rng.min);
+    const rMax = parseFloat(rng.max);
+    if (Number.isFinite(rMin) && clean < rMin) rng.min = String(clean);
+    if (Number.isFinite(rMax) && clean > rMax) rng.max = String(clean);
+    rng.value = String(clean);
+  }
+  if (num) num.value = fmt(clean, dec);
+}
+
+function appendFullDiagnosticsDetails(cards = []) {
+  const body = document.getElementById("drawerBody");
+  if (!body) return;
+  const existing = body.querySelector(".diag-details");
+  if (existing) existing.remove();
+  if (!Array.isArray(cards) || !cards.length) return;
+
+  const details = document.createElement("details");
+  details.className = "diag-details";
+
+  const summary = document.createElement("summary");
+  summary.textContent = "Full Diagnostics & Formulas";
+  details.appendChild(summary);
+
+  const grid = document.createElement("div");
+  grid.className = "diag-grid";
+
+  for (const item of cards) {
+    const cell = document.createElement("div");
+    cell.className = "diag-cell";
+    const kEl = document.createElement("div");
+    kEl.className = "diag-key";
+    kEl.textContent = item.k || "";
+    const vEl = document.createElement("div");
+    vEl.className = `diag-val ${item.tone || ""}`;
+    if (item.tex) {
+      renderTex(vEl, item.tex, false);
+    } else if (item.html) {
+      vEl.innerHTML = item.html;
+    } else {
+      vEl.textContent = item.v ?? "";
+    }
+    cell.appendChild(kEl);
+    cell.appendChild(vEl);
+    grid.appendChild(cell);
+  }
+
+  details.appendChild(grid);
+  body.appendChild(details);
+}
+
+function describeCustomObstacles(obsList, activeTool) {
+  const list = Array.isArray(obsList) ? obsList : [];
+  const counts = {};
+  for (const ob of list) {
+    counts[ob.type] = (counts[ob.type] || 0) + 1;
+  }
+  const summaryParts = Object.entries(counts).map(([k, n]) => `${n} ${k}`);
+  const obsSummary =
+    obsList === null
+      ? "Built-in preset geometry"
+      : list.length === 0
+      ? "Custom: 0 obstacles (empty channel)"
+      : `Custom (${list.length}): ${summaryParts.join(", ")}`;
+  if (!activeTool) return obsSummary;
+  const toolLabel =
+    activeTool === "circle"
+      ? "Drawing Circle (drag on tunnel)"
+      : activeTool === "rect"
+      ? "Drawing Rect (drag on tunnel)"
+      : "Drawing Wake Splitter (drag on tunnel)";
+  return `${obsSummary} · ${toolLabel}`;
+}
 
 export function renderStation04(ctx) {
   const {
     state,
+    bus,
     apiPost,
     debouncedRun,
     flowEngine,
-    plotEngine,
-    setLegend,
-    setConceptBanner,
     clearSecondaryControls,
-    setDrawerMetrics,
-    setDrawerCards,
     renderRockers,
     refreshAudit,
-    openLab,
   } = ctx;
 
+  stopActiveAnimations();
   clearSecondaryControls();
+  lastSolvedS4 = { family: null, data: null };
 
   if (!state.bay04Mode) state.bay04Mode = "lbm"; // lbm | jump | expansion | tank
   if (!state.s4) {
     state.s4 = {
       lbmPreset: "cylinder",
       reynolds: 105.0,
+      nSteps: 450,
       customObstacles: null,
-      lbmPlotView: "wake", // wake | profile
+      lbmPlotView: "wake",
+      lbmScalarMode: "vorticity",
+      lbmDrawTool: null,
       lastLbmData: null,
       jumpV1: 6.1,
       jumpH1: 0.305,
       jumpWidth: 6.1,
+      jumpPlotView: "es",
       expD1: 0.10,
       expD2: 0.20,
       expV1: 4.0,
+      expPlotView: "pressure",
       tankAx: 3.0,
       tankAz: 0.0,
     };
   }
 
-  const m = state.bay04Mode;
   const p = state.s4;
+  p.nSteps = Number.isFinite(Number(p.nSteps)) ? Number(p.nSteps) : 450;
+  p.lbmPlotView = p.lbmPlotView === "profile" ? "profile" : "wake";
+  p.lbmScalarMode = p.lbmScalarMode === "speed" ? "speed" : "vorticity";
+  p.jumpPlotView = p.jumpPlotView === "fs" ? "fs" : "es";
+  p.expPlotView = p.expPlotView === "head" ? "head" : "pressure";
+  if (p.lbmDrawTool === undefined) p.lbmDrawTool = null;
+
+  applyIncomingNavPayload(ctx);
+
+  const m = state.bay04Mode;
+  if (m !== "lbm") {
+    p.lbmDrawTool = null;
+    flowEngine?.setDrawMode?.(null, null);
+  }
+
   const host = document.getElementById("bayControls");
   const titles = {
     lbm: "4A · Live 2D LBM Wind Tunnel",
@@ -61,87 +424,170 @@ export function renderStation04(ctx) {
         <span>${titles[m] || "Conservation Traps & LBM"}</span>
         <span class="tag-mono">Ch. 2 / 10 / 11 / 12</span>
       </div>
-      <div class="mode-switch-row" style="grid-template-columns: repeat(2, 1fr);">
-        <button class="mode-btn ${m === "lbm" ? "active" : ""}" data-s4="lbm">4A · 2D LBM Tunnel</button>
-        <button class="mode-btn ${m === "jump" ? "active" : ""}" data-s4="jump">4B · Hydraulic Jump</button>
-        <button class="mode-btn ${m === "expansion" ? "active" : ""}" data-s4="expansion">4C · Pipe Expansion</button>
-        <button class="mode-btn ${m === "tank" ? "active" : ""}" data-s4="tank">4D · Accel / Free Fall</button>
-      </div>
       <div id="s4Sub"></div>
     </section>
   `;
 
-  host.querySelectorAll("[data-s4]").forEach((btn) => {
-    btn.onclick = () => {
-      if (typeof openLab === "function") openLab("04", btn.dataset.s4);
-      else {
-        state.bay04Mode = btn.dataset.s4;
-        renderStation04(ctx);
-      }
-    };
-  });
+  const sub = document.getElementById("s4Sub");
 
-  const renderLbmSecondaryPlot = (d) => {
-    if (!d) return;
+  const displayAndAppend = (family, d, options = {}) => {
+    lastSolvedS4 = { family, data: d };
+    const spec = displaySolvedFamily(family, d, ctx, options);
+    appendFullDiagnosticsDetails(spec.deepCards || []);
+    return spec;
+  };
+
+  const emitSolved = ({ family, subMode, params, obstacles = [], solverData, rawQuery }) => {
+    if (!bus || typeof bus.emit !== "function") return;
+    const meta = CONSERVATION_META[family] || CONSERVATION_META.lbm_tunnel;
+    const cleanObstacles = sanitizeObstaclesList(obstacles);
+    bus.emit("solver:updated", {
+      bay: "04",
+      sub: subMode,
+      family,
+      payload: { ...params },
+      obstacles: cleanObstacles,
+      solverData,
+      parsedQuery: {
+        family,
+        confidence: 1.0,
+        parser_mode: "live_lab",
+        assumptions: { ...state.assumptions },
+        params: { ...params },
+        obstacles: cleanObstacles,
+        concept_twist: meta.concept_twist,
+        broken_shortcut: meta.broken_shortcut,
+        textbook_ref: meta.textbook_ref,
+        unsupported_reason: null,
+        raw_query: rawQuery,
+      },
+    });
+  };
+
+  const renderSecondaryControls = () => {
     const slot = document.getElementById("secondaryPlotControls");
-    if (slot) {
+    if (!slot) return;
+
+    if (state.bay04Mode === "lbm") {
       slot.innerHTML = `
         <div class="seg-toggle" role="tablist" aria-label="LBM Plot View">
-          <button class="seg-btn ${p.lbmPlotView === "wake" ? "active" : ""}" id="btnLbmWake">Wake uy(t)</button>
-          <button class="seg-btn ${p.lbmPlotView === "profile" ? "active" : ""}" id="btnLbmProf">Profile u(y) @ 0.75L</button>
+          <button type="button" class="seg-btn ${p.lbmPlotView === "wake" ? "active" : ""}" id="btnLbmWake" role="tab" aria-selected="${p.lbmPlotView === "wake"}">Wake uy(t)</button>
+          <button type="button" class="seg-btn ${p.lbmPlotView === "profile" ? "active" : ""}" id="btnLbmProf" role="tab" aria-selected="${p.lbmPlotView === "profile"}">Profile u(y) @ 0.75L</button>
         </div>
       `;
       document.getElementById("btnLbmWake").onclick = () => {
         p.lbmPlotView = "wake";
-        renderLbmSecondaryPlot(p.lastLbmData);
+        renderSecondaryControls();
+        if (p.lastLbmData) {
+          displayAndAppend("lbm_tunnel", p.lastLbmData, {
+            lbmScalarMode: p.lbmScalarMode,
+            lbmPlotView: p.lbmPlotView,
+          });
+        }
       };
       document.getElementById("btnLbmProf").onclick = () => {
         p.lbmPlotView = "profile";
-        renderLbmSecondaryPlot(p.lastLbmData);
+        renderSecondaryControls();
+        if (p.lastLbmData) {
+          displayAndAppend("lbm_tunnel", p.lastLbmData, {
+            lbmScalarMode: p.lbmScalarMode,
+            lbmPlotView: p.lbmPlotView,
+          });
+        }
       };
-    }
-
-    if (p.lbmPlotView === "profile" && d.downstream_profile?.y?.length) {
-      document.getElementById("secondaryTitle").textContent = "Downstream Velocity Profile u(y)/Uin at x = 0.75L";
-      setLegend("secondaryLegend", [{ label: "u(y)/Uin @ 0.75L", color: "primary" }]);
-      plotEngine.setPlot({
-        probeAxis: "y",
-        xLabel: "Axial velocity ratio u / Uin",
-        yLabel: "Channel height y / H",
-        xShort: "u/Uin",
-        yShort: "y/H",
-        vMarkers: [
-          { x: 0.0, label: "u = 0", color: "#475569" },
-          { x: 1.0, label: "Uin", color: "amber" },
-        ],
-        series: [
-          {
-            name: "u(y)/Uin",
-            x: d.downstream_profile.u_over_Uin,
-            y: d.downstream_profile.y,
-            color: "primary",
-          },
-        ],
-        defaultHud: `Downstream wake velocity defect at 0.75L | Wake RMS = ${d.wake_oscillation_rms.toFixed(4)}`,
+    } else if (state.bay04Mode === "jump") {
+      slot.innerHTML = `
+        <div class="seg-toggle" role="tablist" aria-label="Hydraulic Jump Plot View">
+          <button type="button" class="seg-btn ${p.jumpPlotView === "es" ? "active" : ""}" id="btnJumpEs" data-jump-plot="es" role="tab" aria-selected="${p.jumpPlotView === "es"}">Specific Energy Es(h)</button>
+          <button type="button" class="seg-btn ${p.jumpPlotView === "fs" ? "active" : ""}" id="btnJumpFs" data-jump-plot="fs" role="tab" aria-selected="${p.jumpPlotView === "fs"}">Specific Force Fs(h)</button>
+        </div>
+      `;
+      slot.querySelectorAll("[data-jump-plot]").forEach((btn) => {
+        btn.onclick = () => {
+          p.jumpPlotView = btn.dataset.jumpPlot === "fs" ? "fs" : "es";
+          renderSecondaryControls();
+          if (lastSolvedS4.family === "hydraulic_jump" && lastSolvedS4.data) {
+            displayAndAppend("hydraulic_jump", lastSolvedS4.data, { jumpPlotView: p.jumpPlotView });
+          } else {
+            run();
+          }
+        };
+      });
+    } else if (state.bay04Mode === "expansion") {
+      slot.innerHTML = `
+        <div class="seg-toggle" role="tablist" aria-label="Sudden Expansion Plot View">
+          <button type="button" class="seg-btn ${p.expPlotView === "pressure" ? "active" : ""}" id="btnExpP" data-exp-plot="pressure" role="tab" aria-selected="${p.expPlotView === "pressure"}">Pressure p(x)</button>
+          <button type="button" class="seg-btn ${p.expPlotView === "head" ? "active" : ""}" id="btnExpHead" data-exp-plot="head" role="tab" aria-selected="${p.expPlotView === "head"}">EGL &amp; HGL Head</button>
+        </div>
+      `;
+      slot.querySelectorAll("[data-exp-plot]").forEach((btn) => {
+        btn.onclick = () => {
+          p.expPlotView = btn.dataset.expPlot === "head" ? "head" : "pressure";
+          renderSecondaryControls();
+          if (lastSolvedS4.family === "sudden_expansion" && lastSolvedS4.data) {
+            displayAndAppend("sudden_expansion", lastSolvedS4.data, { expPlotView: p.expPlotView });
+          } else {
+            run();
+          }
+        };
       });
     } else {
-      document.getElementById("secondaryTitle").textContent = "Downstream Wake Cross-Velocity uy(t)/Uin";
-      setLegend("secondaryLegend", [{ label: "Wake uy(t)/Uin", color: "primary" }]);
-      const ts = d.wake_uy_history.map((_, idx) => idx * 10);
-      plotEngine.setPlot({
-        xLabel: "Lattice iteration step (Re ≤ 160 BGK)",
-        yLabel: "Normalized transverse velocity uy / Uin",
-        xShort: "step",
-        series: [{ name: "Wake uy/Uin", x: ts, y: d.wake_uy_history, color: "primary" }],
-        defaultHud: `BGK τ = ${d.tau_bgk.toFixed(3)} | Ma = ${d.mach_inlet.toFixed(3)} | Wake RMS = ${d.wake_oscillation_rms.toFixed(4)}`,
-      });
+      clearSecondaryControls();
     }
   };
+
+  const updateTankEffluxUI = (d) => {
+    const gaugeEl = document.getElementById("tankEffluxGauge");
+    const seqBtn = document.getElementById("btnFreeFallSeq");
+    const inFreeFall = p.tankAz <= -9.75 || (d && Number(d.g_effective) < 0.05);
+
+    if (seqBtn) {
+      seqBtn.textContent =
+        p.tankAz <= -9.75 ? "Restore Gravity (az = 0)" : "Drop in Free Fall (az = -g)";
+    }
+
+    if (!gaugeEl || !d) return;
+    const vTrue = Math.max(0, Number(d.orifice_v_true) || 0);
+    const vNaive = Math.max(0.01, Number(d.orifice_v_naive_static) || 0);
+    const scaleRef = Math.max(vTrue, vNaive, 1.0);
+    const pctTrue = inFreeFall ? 0 : clamp((vTrue / scaleRef) * 100, 0, 100);
+    const pctNaive = clamp((vNaive / scaleRef) * 100, 0, 100);
+
+    gaugeEl.classList.toggle("is-freefall", inFreeFall);
+    gaugeEl.innerHTML = `
+      <div class="efflux-gauge-header">
+        <span>Orifice Efflux Comparison</span>
+        <span class="tag-mono">g_eff = ${fmt(d.g_effective, 2)} m/s²</span>
+      </div>
+      <div class="efflux-gauge-grid">
+        <div class="efflux-card ${inFreeFall ? "efflux-freefall" : "efflux-true"}">
+          <span class="efflux-k">True Frame V_exit</span>
+          <span class="efflux-v" id="effluxTrueVal">${inFreeFall ? "0.00 m/s · NO LEAK" : `${fmt(vTrue, 2)} m/s`}</span>
+          <div class="efflux-meter-track"><div class="efflux-meter-fill" style="width:${pctTrue.toFixed(1)}%;"></div></div>
+          <span class="efflux-note">${inFreeFall ? "Free fall (dp/dz = 0) halts draining" : `Tilt θ = ${fmt(d.tilt_deg, 1)}°`}</span>
+        </div>
+        <div class="efflux-card efflux-naive">
+          <span class="efflux-k">Torricelli Naive √(2gh₀)</span>
+          <span class="efflux-v" id="effluxNaiveVal">${fmt(vNaive, 2)} m/s</span>
+          <div class="efflux-meter-track"><div class="efflux-meter-fill" style="width:${pctNaive.toFixed(1)}%;"></div></div>
+          <span class="efflux-note">${inFreeFall ? `Overpredicts by +${fmt(vNaive, 2)} m/s!` : `ΔV = ${fmt(vTrue - vNaive, 2)} m/s`}</span>
+        </div>
+      </div>
+    `;
+  };
+
+  const isBayActive = (subMode) =>
+    (!state.activeView || state.activeView === "labs") &&
+    (!state.activeBay || state.activeBay === "04") &&
+    state.bay04Mode === subMode &&
+    sub?.isConnected !== false;
 
   const run = async () => {
     try {
       if (state.bay04Mode === "lbm") {
-        document.getElementById("flowProbeHud").textContent = "Numba D2Q9 LBM kernel simulating...";
+        const hud = document.getElementById("flowProbeHud");
+        if (hud) hud.textContent = "Numba D2Q9 LBM kernel simulating...";
+
         Object.assign(state.assumptions, {
           steady: false,
           incompressible: true,
@@ -153,53 +599,45 @@ export function renderStation04(ctx) {
           adverse_pressure_gradient: true,
           irreversible_jump: false,
         });
+        state.assumptionCauses = {
+          steady: "∂V/∂t ≠ 0 (shedding)",
+          incompressible: "Ma ≪ 0.3",
+          irrotational: "Ωz ≠ 0 (viscous wake)",
+        };
         renderRockers();
-        refreshAudit();
+        refreshAudit("ns_x");
+        renderSecondaryControls();
 
-        const d = await apiPost(
-          "/api/lbm_tunnel",
-          {
-            preset: p.lbmPreset,
-            reynolds: p.reynolds,
-            n_steps: 450,
-            obstacles: p.customObstacles,
-          },
-          "activeLab"
-        );
+        const useCustom = p.lbmPreset === "custom" || Array.isArray(p.customObstacles);
+        const effectivePreset = useCustom ? "custom" : p.lbmPreset;
+        const effectiveObstacles = useCustom ? sanitizeObstaclesList(p.customObstacles || []) : null;
+        if (useCustom && p.lbmPreset !== "custom") p.lbmPreset = "custom";
+
+        const reqPayload = {
+          preset: effectivePreset,
+          reynolds: p.reynolds,
+          n_steps: p.nSteps,
+          obstacles: effectiveObstacles,
+          ...(useCustom ? { customObstacles: effectiveObstacles } : {}),
+        };
+
+        const d = await apiPost("/api/lbm_tunnel", reqPayload, "activeLab");
+        if (!isBayActive("lbm")) return;
         p.lastLbmData = d;
 
-        document.getElementById("primaryTitle").textContent = `2D D2Q9 LBM Vorticity & Wake (${p.lbmPreset.replaceAll("_", " ")})`;
-        setLegend("primaryLegend", [
-          { label: "+Ωz Vortex", color: "amber" },
-          { label: "-Ωz Vortex", color: "primary" },
-        ]);
-        setConceptBanner(
-          "<strong>Live 2D D2Q9 Lattice–Boltzmann Wind Tunnel:</strong> Solves real viscous Navier–Stokes vortex shedding behind true 1:1 scaled obstacles.",
-          "Switch geometry to 'Cylinder + Splitter Plate' to watch the rigid splitter plate suppress oscillating Kármán vortices!"
-        );
-
-        flowEngine.setScene({
-          bounds: d.field_2d.bounds,
-          aspectLock: true,
-          xLabel: "Tunnel length x / H",
-          yLabel: "Channel height y / H",
-          field: d.field_2d,
-          solidRects: d.solid_rects,
+        displayAndAppend("lbm_tunnel", d, {
+          lbmScalarMode: p.lbmScalarMode,
+          lbmPlotView: p.lbmPlotView,
         });
-        renderLbmSecondaryPlot(d);
-
-        setDrawerMetrics([
-          { k: "Re", v: d.reynolds.toFixed(0), color: "var(--accent)" },
-          { k: "Ma_in", v: d.mach_inlet.toFixed(3) },
-          { k: "Wake RMS", v: d.wake_oscillation_rms.toFixed(4), color: d.wake_oscillation_rms > 0.02 ? "var(--coral)" : "var(--ok-green)" },
-        ]);
-        setDrawerCards([
-          { k: "Operating Regime", v: `2D Incompressible BGK LBM · Re = ${d.reynolds.toFixed(0)}, τ = ${d.tau_bgk.toFixed(3)}`, tone: "accent" },
-          { k: "Vortex Shedding Metric", v: `RMS(uy_wake) = ${d.wake_oscillation_rms.toFixed(4)} (${d.wake_oscillation_rms > 0.02 ? "Active Kármán street" : "Damped wake"})`, tone: d.wake_oscillation_rms > 0.02 ? "coral" : "ok" },
-          { k: "Lattice Stability", v: d.stable ? `Stable (${d.grid_shape[1]}×${d.grid_shape[0]} grid)` : "Unstable" },
-        ]);
+        emitSolved({
+          family: "lbm_tunnel",
+          subMode: "lbm",
+          params: reqPayload,
+          obstacles: effectiveObstacles || [],
+          solverData: d,
+          rawQuery: `2D D2Q9 LBM wind tunnel (${effectivePreset}) Re=${fmt(p.reynolds, 0)}, n_steps=${p.nSteps}, obstacles=${(effectiveObstacles || []).length}`,
+        });
       } else if (state.bay04Mode === "jump") {
-        clearSecondaryControls();
         Object.assign(state.assumptions, {
           steady: true,
           incompressible: true,
@@ -211,47 +649,28 @@ export function renderStation04(ctx) {
           adverse_pressure_gradient: true,
           irreversible_jump: true,
         });
+        state.assumptionCauses = {
+          steady: "∂V/∂t = 0",
+          incompressible: "∇·V = 0.000 s⁻¹",
+          irrotational: "Turbulent roller eddy",
+        };
         renderRockers();
-        refreshAudit();
+        refreshAudit("specific_force");
+        renderSecondaryControls();
 
-        const d = await apiPost("/api/hydraulic_jump", { width: p.jumpWidth, v1: p.jumpV1, h1: p.jumpH1 }, "activeLab");
-        document.getElementById("primaryTitle").textContent = "Hydraulic Jump Profile, Sluice Gate & Roller Eddy";
-        document.getElementById("secondaryTitle").textContent = "Specific Energy Es(h): Momentum Conjugate vs. No-Loss Trap";
-        setLegend("primaryLegend", [
-          { label: "True Depth h(x)", color: "primary" },
-          { label: "Naive No-Loss h₂", color: "coral", dashed: true },
-        ]);
-        setLegend("secondaryLegend", [{ label: "Specific Energy Es(h)", color: "primary" }]);
-        setConceptBanner(
-          "<strong>Hydraulic Jump Momentum Balance (Ch. 12.4):</strong> Supercritical flow h₁ decelerates through an irreversible turbulent surface roller to conjugate depth h₂.",
-          "Energy Conservation Trap: Setting Es₁ = Es₂ ignores eddy dissipation hj and drastically overpredicts h₂!"
-        );
+        const reqPayload = { width: p.jumpWidth, v1: p.jumpV1, h1: p.jumpH1 };
+        const d = await apiPost("/api/hydraulic_jump", reqPayload, "activeLab");
+        if (!isBayActive("jump")) return;
 
-        flowEngine.setScene(buildHydraulicJumpScene(d));
-        plotEngine.setPlot({
-          xLabel: "Flow depth h (m)",
-          yLabel: "Specific energy Es = h + V²/2g (m)",
-          xShort: "h",
-          series: [{ name: "Specific Energy Es", x: d.es_diagram.h, y: d.es_diagram.Es, color: "primary" }],
-          vMarkers: [
-            { x: d.h1, label: "h₁", color: "#475569" },
-            { x: d.h2_true, label: "h₂ True", color: "primary" },
-            { x: d.h2_naive_bernoulli, label: "h₂ Naive", color: "coral" },
-          ],
-          defaultHud: `Fr₁ = ${d.Fr1.toFixed(2)} | Loss hj = ${d.head_loss_hj.toFixed(3)} m | P_loss = ${(d.power_loss_W / 1000).toFixed(2)} kW`,
+        displayAndAppend("hydraulic_jump", d, { jumpPlotView: p.jumpPlotView });
+        emitSolved({
+          family: "hydraulic_jump",
+          subMode: "jump",
+          params: reqPayload,
+          solverData: d,
+          rawQuery: `Hydraulic jump width=${fmt(p.jumpWidth, 2)} m, V1=${fmt(p.jumpV1, 2)} m/s, h1=${fmt(p.jumpH1, 3)} m`,
         });
-        setDrawerMetrics([
-          { k: "Fr₁", v: d.Fr1.toFixed(2), color: d.can_jump ? "var(--accent)" : "var(--coral)" },
-          { k: "h₂ True", v: `${d.h2_true.toFixed(3)} m`, color: "var(--accent)" },
-          { k: "h₂ Naive", v: `${d.h2_naive_bernoulli.toFixed(3)} m`, color: "var(--coral)" },
-        ]);
-        setDrawerCards([
-          { k: "Momentum Conjugate Depth h₂", v: `${d.h2_true.toFixed(3)} m (Jump Δh = ${d.jump_height.toFixed(3)} m)`, tone: "accent" },
-          { k: "Naive No-Loss Depth", v: `${d.h2_naive_bernoulli.toFixed(3)} m (Overpredicts by +${d.depth_overprediction.toFixed(3)} m!)`, tone: "coral" },
-          { k: "Eddy Dissipation (Eq. 12.48)", v: `hj = ${d.head_loss_hj.toFixed(3)} m | Power dissipated = ${(d.power_loss_W / 1000).toFixed(2)} kW`, tone: "amber" },
-        ]);
       } else if (state.bay04Mode === "expansion") {
-        clearSecondaryControls();
         Object.assign(state.assumptions, {
           steady: true,
           incompressible: true,
@@ -263,48 +682,28 @@ export function renderStation04(ctx) {
           adverse_pressure_gradient: true,
           irreversible_jump: true,
         });
+        state.assumptionCauses = {
+          steady: "∂V/∂t = 0",
+          incompressible: "∇·V = 0.000 s⁻¹",
+          irrotational: "Corner shear eddy",
+        };
         renderRockers();
-        refreshAudit();
+        refreshAudit("specific_force");
+        renderSecondaryControls();
 
-        const d = await apiPost("/api/sudden_expansion", { D1: p.expD1, D2: p.expD2, V1: p.expV1 }, "activeLab");
-        document.getElementById("primaryTitle").textContent = "Borda–Carnot Sudden Pipe Expansion & Annular Eddies";
-        document.getElementById("secondaryTitle").textContent = "Pressure Recovery: Momentum Balance vs. Naive Bernoulli";
-        setLegend("primaryLegend", [
-          { label: "Expanding Pipe Jet", color: "primary" },
-          { label: "Dead-Zone Eddies", color: "coral" },
-        ]);
-        setLegend("secondaryLegend", [
-          { label: "True Δp(x)", color: "primary" },
-          { label: "Naive Bernoulli Δp(x)", color: "coral", dashed: true },
-        ]);
-        setConceptBanner(
-          "<strong>Borda–Carnot Expansion (Eq. 11.18):</strong> Annular corner eddies trap uniform shoulder pressure p' ≈ p₁ across the step face, conserving momentum rather than head.",
-          "Ideal Bernoulli predicts ½ρ(V₁² - V₂²), ignoring Borda head loss hL = (V₁ - V₂)²/2g!"
-        );
+        const reqPayload = { D1: p.expD1, D2: p.expD2, V1: p.expV1 };
+        const d = await apiPost("/api/sudden_expansion", reqPayload, "activeLab");
+        if (!isBayActive("expansion")) return;
 
-        flowEngine.setScene(buildSuddenExpansionScene(d));
-        plotEngine.setPlot({
-          xLabel: "Axial position x (m)",
-          yLabel: "Pressure recovery p - p₁ (kPa)",
-          xShort: "x",
-          shadeDiff: true,
-          series: [
-            { name: "True Δp (kPa)", x: d.x, y: d.p_true_x.map((v) => (v - d.p1) / 1000), color: "primary" },
-            { name: "Naive Δp (kPa)", x: d.x, y: d.p_naive_x.map((v) => (v - d.p1) / 1000), color: "coral", dashed: true },
-          ],
-          defaultHud: `True Δp = ${(d.dp_true / 1000).toFixed(2)} kPa | Naive = ${(d.dp_naive / 1000).toFixed(2)} kPa | hL = ${d.head_loss_hL.toFixed(3)} m`,
+        displayAndAppend("sudden_expansion", d, { expPlotView: p.expPlotView });
+        emitSolved({
+          family: "sudden_expansion",
+          subMode: "expansion",
+          params: reqPayload,
+          solverData: d,
+          rawQuery: `Sudden pipe expansion D1=${fmt(p.expD1, 3)} m to D2=${fmt(p.expD2, 3)} m at V1=${fmt(p.expV1, 2)} m/s`,
         });
-        setDrawerMetrics([
-          { k: "Δp True", v: `${(d.dp_true / 1000).toFixed(2)} kPa`, color: "var(--accent)" },
-          { k: "Δp Naive", v: `${(d.dp_naive / 1000).toFixed(2)} kPa`, color: "var(--coral)" },
-        ]);
-        setDrawerCards([
-          { k: "Momentum Recovery (Eq. 11.21)", v: `ρV₂(V₁ - V₂) = ${(d.dp_true / 1000).toFixed(2)} kPa`, tone: "accent" },
-          { k: "Naive Bernoulli Trap", v: `½ρ(V₁² - V₂²) = ${(d.dp_naive / 1000).toFixed(2)} kPa (Overestimates by ${(d.dp_overestimation / 1000).toFixed(2)} kPa!)`, tone: "coral" },
-          { k: "Borda–Carnot Loss (Eq. 11.23)", v: `hL = (V₁ - V₂)²/2g = ${d.head_loss_hL.toFixed(3)} m` },
-        ]);
       } else {
-        clearSecondaryControls();
         const isInertial = Math.abs(p.tankAx) < 0.05 && Math.abs(p.tankAz) < 0.05;
         Object.assign(state.assumptions, {
           steady: true,
@@ -317,184 +716,475 @@ export function renderStation04(ctx) {
           adverse_pressure_gradient: false,
           irreversible_jump: false,
         });
+        state.assumptionCauses = {
+          steady: "∂V/∂t = 0 (tank frame)",
+          incompressible: "∇·V = 0.000 s⁻¹",
+          irrotational: "Rigid tank body",
+        };
         renderRockers();
-        refreshAudit();
+        refreshAudit("frame_g_eff");
+        clearSecondaryControls();
 
-        const d = await apiPost("/api/accel_tank", { ax: p.tankAx, az: p.tankAz }, "activeLab");
-        document.getElementById("primaryTitle").textContent = `Non-Inertial Tank & Bottom Orifice (${d.regime.replaceAll("_", " ")})`;
-        document.getElementById("secondaryTitle").textContent = "Base Hydrostatic Pressure: Effective Frame vs. Static Naive";
-        setLegend("primaryLegend", [
-          { label: "Actual Surface & Jet", color: "primary" },
-          { label: "Static Flat Level", color: "coral", dashed: true },
-        ]);
-        setLegend("secondaryLegend", [
-          { label: "Actual p_bot (kPa)", color: "primary" },
-          { label: "Naive Static (kPa)", color: "coral", dashed: true },
-        ]);
-        setConceptBanner(
-          d.g_effective < 0.05
-            ? "<strong>Free-Fall Hydrostatic Collapse (p. 99):</strong> When tank acceleration matches az = -g, effective body force g_eff = 0 ⇒ gauge pressure vanishes everywhere and bottom orifice DOES NOT LEAK!"
-            : "<strong>Accelerating Tank Hydrostatics (Eq. 2.86):</strong> Constant-pressure isobars tilt perpendicular to g_eff with angle tan θ = -ax / (g + az).",
-          "Inertial Trap: Computing bottom efflux from √(2gh₀) fails under vertical acceleration az or horizontal tilt!"
-        );
+        const reqPayload = { ax: p.tankAx, az: p.tankAz };
+        const d = await apiPost("/api/accel_tank", reqPayload, "activeLab");
+        if (!isBayActive("tank")) return;
 
-        flowEngine.setScene(buildAccelTankScene(d));
-        plotEngine.setPlot({
-          xLabel: "Horizontal tank coordinate x (m)",
-          yLabel: "Bottom gauge pressure p (kPa)",
-          xShort: "x",
-          shadeDiff: true,
-          series: [
-            { name: "True p_bot (kPa)", x: d.x, y: d.p_bottom_true_kPa, color: "primary" },
-            { name: "Static Naive (kPa)", x: d.x, y: d.p_bottom_naive_kPa, color: "coral", dashed: true },
-          ],
-          defaultHud: `Tilt = ${d.tilt_deg.toFixed(1)}° | Orifice exit V_true = ${d.orifice_v_true.toFixed(2)} m/s vs Naive = ${d.orifice_v_naive_static.toFixed(2)} m/s`,
+        displayAndAppend("accelerating_tank", d);
+        updateTankEffluxUI(d);
+        emitSolved({
+          family: "accelerating_tank",
+          subMode: "tank",
+          params: reqPayload,
+          solverData: d,
+          rawQuery: `Accelerating tank frame ax=${fmt(p.tankAx, 2)} m/s^2, az=${fmt(p.tankAz, 2)} m/s^2`,
         });
-        setDrawerMetrics([
-          { k: "Tilt", v: `${d.tilt_deg.toFixed(1)}°`, color: "var(--accent)" },
-          { k: "Orifice V", v: `${d.orifice_v_true.toFixed(2)} m/s`, color: d.orifice_v_true < 0.01 ? "var(--coral)" : "var(--accent)" },
-        ]);
-        setDrawerCards([
-          { k: "Free-Surface Slope (Eq. 2.87)", v: `tan θ = -ax / (g + az) ⇒ θ = ${d.tilt_deg.toFixed(2)}°`, tone: "amber" },
-          { k: "Bottom Hole Trap (p. 99)", v: d.g_effective < 0.01 ? "Free Fall: p = patm everywhere ⇒ No leak (V_exit = 0)!" : `Orifice speed = ${d.orifice_v_true.toFixed(2)} m/s (Static: ${d.orifice_v_naive_static.toFixed(2)} m/s)`, tone: d.g_effective < 0.01 ? "coral" : "accent" },
-        ]);
       }
     } catch (err) {
-      if (err.name === "AbortError") return;
-      document.getElementById("flowProbeHud").textContent = `Solver error: ${err.message}`;
+      if (err?.name === "AbortError") return;
+      const hud = document.getElementById("flowProbeHud");
+      if (hud) hud.textContent = `Solver error: ${err.message}`;
     }
   };
 
-  const sub = document.getElementById("s4Sub");
   if (m === "lbm") {
+    const syncLbmToolbarUI = () => {
+      const sel = document.getElementById("selLbm");
+      if (sel) sel.value = p.lbmPreset;
+
+      sub.querySelectorAll("[data-lbm-tool]").forEach((btn) => {
+        const active = btn.dataset.lbmTool === p.lbmDrawTool;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-pressed", String(active));
+      });
+
+      const badge = document.getElementById("lbmObstacleStatus");
+      if (badge) {
+        badge.textContent = describeCustomObstacles(p.customObstacles, p.lbmDrawTool);
+        badge.classList.toggle("is-drawing", Boolean(p.lbmDrawTool));
+        badge.classList.toggle(
+          "is-empty",
+          !p.lbmDrawTool && (!Array.isArray(p.customObstacles) || p.customObstacles.length === 0)
+        );
+      }
+
+      sub.querySelectorAll("[data-lbm-steps]").forEach((btn) => {
+        const active = Number(btn.dataset.lbmSteps) === Number(p.nSteps);
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-selected", String(active));
+      });
+
+      sub.querySelectorAll("[data-lbm-scalar]").forEach((btn) => {
+        const active = btn.dataset.lbmScalar === p.lbmScalarMode;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-selected", String(active));
+      });
+
+      const runBtn = document.getElementById("btnRunLbm");
+      if (runBtn) runBtn.textContent = `Run ${p.nSteps} LBM Steps`;
+    };
+
+    const handleObstacleAdded = (rawPrimitive) => {
+      const clean = sanitizeObstacle(rawPrimitive);
+      if (!clean) return;
+      p.customObstacles = [...(Array.isArray(p.customObstacles) ? p.customObstacles : []), clean];
+      p.lbmPreset = "custom";
+      syncLbmToolbarUI();
+      run();
+    };
+
     sub.innerHTML = `
       <div class="field-group">
         <div class="field-label-row"><span>Wind-Tunnel Geometry</span></div>
-        <select class="select-input" id="selLbm">
+        <select class="select-input" id="selLbm" aria-label="Wind-Tunnel Geometry Preset">
           <option value="cylinder" ${p.lbmPreset === "cylinder" ? "selected" : ""}>Circular Cylinder (K&aacute;rm&aacute;n Wake)</option>
           <option value="cylinder_splitter" ${p.lbmPreset === "cylinder_splitter" ? "selected" : ""}>Cylinder + Wake Splitter Plate</option>
           <option value="backward_step" ${p.lbmPreset === "backward_step" ? "selected" : ""}>Backward-Facing Step Recirculation</option>
           <option value="tandem_cylinders" ${p.lbmPreset === "tandem_cylinders" ? "selected" : ""}>Tandem Dual Cylinders</option>
+          <option value="custom" ${p.lbmPreset === "custom" ? "selected" : ""}>Custom Drawn Obstacles</option>
         </select>
       </div>
-      <div class="field-group" style="margin-top:8px;">
-        <div class="field-label-row"><span>Reynolds Number Re (25..160)</span><span class="val-readout" id="lblRe">${p.reynolds.toFixed(0)}</span></div>
-        <input type="range" id="rngRe" min="25" max="160" step="5" value="${p.reynolds}" />
+
+      <div class="lbm-toolbar-wrap" style="margin-top:8px;">
+        <div class="lbm-status-row">
+          <span>Interactive Canvas Draw Tools</span>
+          <span class="lbm-badge" id="lbmObstacleStatus"></span>
+        </div>
+        <div class="lbm-draw-bar" role="group" aria-label="LBM Obstacle Drawing Tools">
+          <button type="button" class="draw-tool-btn" id="btnDrawCircle" data-lbm-tool="circle">Draw Circle</button>
+          <button type="button" class="draw-tool-btn" id="btnDrawRect" data-lbm-tool="rect">Draw Rect</button>
+          <button type="button" class="draw-tool-btn" id="btnDrawSplitter" data-lbm-tool="splitter">Add Wake Splitter</button>
+          <button type="button" class="draw-tool-btn draw-tool-clear" id="btnClearObstacles">Clear Obstacles</button>
+        </div>
       </div>
-      <button class="btn-machined btn-primary" id="btnRunLbm" style="width:100%;margin-top:10px;">Run 450 LBM Steps</button>
+
+      <div style="margin-top:8px;">
+        ${pairedFieldHtml({
+          idBase: "Re",
+          paramName: "reynolds",
+          label: "Reynolds Number Re",
+          unit: "Re",
+          min: 25,
+          max: 160,
+          step: 5,
+          value: p.reynolds,
+          dec: 0,
+          fullWidth: true,
+        })}
+      </div>
+
+      <div class="lbm-step-bar" style="margin-top:8px;">
+        <div class="field-label-row"><span>Simulation Step Scrubber</span></div>
+        <div class="seg-toggle seg-toggle-full" role="tablist" aria-label="LBM Step Count">
+          <button type="button" class="seg-btn" data-lbm-steps="200" role="tab">200 Fast</button>
+          <button type="button" class="seg-btn" data-lbm-steps="450" role="tab">450 Standard</button>
+          <button type="button" class="seg-btn" data-lbm-steps="700" role="tab">700 Developed</button>
+        </div>
+      </div>
+
+      <div class="lbm-step-bar" style="margin-top:8px;">
+        <div class="field-label-row"><span>Colormap Scalar Field</span></div>
+        <div class="seg-toggle seg-toggle-full" role="tablist" aria-label="LBM Field Colormap Mode">
+          <button type="button" class="seg-btn" data-lbm-scalar="vorticity" role="tab">Diverging Vorticity &Omega;z</button>
+          <button type="button" class="seg-btn" data-lbm-scalar="speed" role="tab">Velocity |V|</button>
+        </div>
+      </div>
+
+      <button type="button" class="btn-machined btn-primary" id="btnRunLbm" style="width:100%;margin-top:10px;">Run ${p.nSteps} LBM Steps</button>
     `;
+
+    syncLbmToolbarUI();
+    flowEngine?.setDrawMode?.(p.lbmDrawTool, p.lbmDrawTool ? handleObstacleAdded : null);
+
     document.getElementById("selLbm").onchange = (e) => {
-      p.lbmPreset = e.target.value;
-      p.customObstacles = null;
+      const next = e.target.value;
+      p.lbmPreset = next;
+      if (next === "custom") {
+        p.customObstacles = Array.isArray(p.customObstacles) ? p.customObstacles : [];
+      } else {
+        p.customObstacles = null;
+        p.lbmDrawTool = null;
+        flowEngine?.setDrawMode?.(null, null);
+      }
+      syncLbmToolbarUI();
       run();
     };
-    const rngRe = document.getElementById("rngRe");
-    rngRe.oninput = (e) => {
-      p.reynolds = parseFloat(e.target.value);
-      document.getElementById("lblRe").textContent = p.reynolds.toFixed(0);
-      debouncedRun("bay04_lbm", run, 220);
+
+    sub.querySelectorAll("[data-lbm-tool]").forEach((btn) => {
+      btn.onclick = () => {
+        const tool = btn.dataset.lbmTool;
+        p.lbmDrawTool = p.lbmDrawTool === tool ? null : tool;
+        flowEngine?.setDrawMode?.(p.lbmDrawTool, p.lbmDrawTool ? handleObstacleAdded : null);
+        syncLbmToolbarUI();
+      };
+    });
+
+    document.getElementById("btnClearObstacles").onclick = () => {
+      p.customObstacles = [];
+      p.lbmPreset = "custom";
+      p.lbmDrawTool = null;
+      flowEngine?.setDrawMode?.(null, null);
+      syncLbmToolbarUI();
+      run();
     };
-    rngRe.onchange = run;
+
+    sub.querySelectorAll("[data-lbm-steps]").forEach((btn) => {
+      btn.onclick = () => {
+        p.nSteps = Number(btn.dataset.lbmSteps) || 450;
+        syncLbmToolbarUI();
+        run();
+      };
+    });
+
+    sub.querySelectorAll("[data-lbm-scalar]").forEach((btn) => {
+      btn.onclick = () => {
+        p.lbmScalarMode = btn.dataset.lbmScalar === "speed" ? "speed" : "vorticity";
+        syncLbmToolbarUI();
+        if (p.lastLbmData) {
+          displayAndAppend("lbm_tunnel", p.lastLbmData, {
+            lbmScalarMode: p.lbmScalarMode,
+            lbmPlotView: p.lbmPlotView,
+          });
+          renderSecondaryControls();
+        }
+      };
+    });
+
+    bindPairedControl({
+      idBase: "Re",
+      obj: p,
+      key: "reynolds",
+      dec: 0,
+      clampMin: 15,
+      clampMax: 180,
+      onAfterChange: (_val, src) => {
+        if (src === "number-commit") run();
+        else debouncedRun("bay04_lbm", run, 200);
+      },
+    });
+    document.getElementById("rngRe").onchange = run;
     document.getElementById("btnRunLbm").onclick = run;
   } else if (m === "jump") {
     sub.innerHTML = `
       <div class="preset-row" style="margin-bottom:8px;">
-        <button class="btn-machined" id="preEx1211">Ex 12.11 (Fr&#8321;=3.53)</button>
-        <button class="btn-machined" id="preEx1212">Ex 12.12 (Fr&#8321;=2.15)</button>
+        <button type="button" class="btn-machined" id="preEx1211">Ex 12.11 (Fr&#8321;=3.53)</button>
+        <button type="button" class="btn-machined" id="preEx1212">Ex 12.12 (Fr&#8321;=2.15)</button>
       </div>
       <div class="grid-2">
-        <div class="field-group">
-          <div class="field-label-row"><span>Inlet V&#8321; (m/s)</span><span class="val-readout" id="lblJ1">${p.jumpV1.toFixed(2)}</span></div>
-          <input type="range" id="rngJ1" min="2.0" max="10.0" step="0.1" value="${p.jumpV1}" />
-        </div>
-        <div class="field-group">
-          <div class="field-label-row"><span>Depth h&#8321; (m)</span><span class="val-readout" id="lblH1">${p.jumpH1.toFixed(3)}</span></div>
-          <input type="range" id="rngH1" min="0.15" max="0.80" step="0.01" value="${p.jumpH1}" />
-        </div>
+        ${pairedFieldHtml({
+          idBase: "J1",
+          paramName: "v1",
+          label: "Inlet V₁",
+          unit: "m/s",
+          min: 2.0,
+          max: 10.0,
+          step: 0.1,
+          value: p.jumpV1,
+          dec: 2,
+        })}
+        ${pairedFieldHtml({
+          idBase: "H1",
+          paramName: "h1",
+          label: "Depth h₁",
+          unit: "m",
+          min: 0.15,
+          max: 0.80,
+          step: 0.01,
+          value: p.jumpH1,
+          dec: 3,
+        })}
+        ${pairedFieldHtml({
+          idBase: "Jw",
+          paramName: "width",
+          label: "Apron Width b",
+          unit: "m",
+          min: 1.0,
+          max: 12.0,
+          step: 0.1,
+          value: p.jumpWidth,
+          dec: 2,
+          fullWidth: true,
+        })}
       </div>
     `;
+    const scheduleJump = () => debouncedRun("bay04", run, 65);
+    bindPairedControl({
+      idBase: "J1",
+      obj: p,
+      key: "jumpV1",
+      dec: 2,
+      clampMin: 0.5,
+      clampMax: 25.0,
+      onAfterChange: scheduleJump,
+    });
+    bindPairedControl({
+      idBase: "H1",
+      obj: p,
+      key: "jumpH1",
+      dec: 3,
+      clampMin: 0.05,
+      clampMax: 5.0,
+      onAfterChange: scheduleJump,
+    });
+    bindPairedControl({
+      idBase: "Jw",
+      obj: p,
+      key: "jumpWidth",
+      dec: 2,
+      clampMin: 0.5,
+      clampMax: 30.0,
+      onAfterChange: scheduleJump,
+    });
     document.getElementById("preEx1211").onclick = () => {
       p.jumpV1 = 6.1;
       p.jumpH1 = 0.3042;
       p.jumpWidth = 6.1;
-      renderStation04(ctx);
+      syncPairedValues("J1", p.jumpV1, 2);
+      syncPairedValues("H1", p.jumpH1, 3);
+      syncPairedValues("Jw", p.jumpWidth, 2);
+      run();
     };
     document.getElementById("preEx1212").onclick = () => {
       p.jumpV1 = 4.14;
       p.jumpH1 = 0.379;
       p.jumpWidth = 3.5;
-      renderStation04(ctx);
-    };
-    document.getElementById("rngJ1").oninput = (e) => {
-      p.jumpV1 = parseFloat(e.target.value);
-      document.getElementById("lblJ1").textContent = p.jumpV1.toFixed(2);
-      debouncedRun("bay04", run, 55);
-    };
-    document.getElementById("rngH1").oninput = (e) => {
-      p.jumpH1 = parseFloat(e.target.value);
-      document.getElementById("lblH1").textContent = p.jumpH1.toFixed(3);
-      debouncedRun("bay04", run, 55);
+      syncPairedValues("J1", p.jumpV1, 2);
+      syncPairedValues("H1", p.jumpH1, 3);
+      syncPairedValues("Jw", p.jumpWidth, 2);
+      run();
     };
   } else if (m === "expansion") {
+    const ratioVal = roundDec(p.expD2 / Math.max(p.expD1, 1e-6), 2);
     sub.innerHTML = `
+      <div class="preset-row" style="margin-bottom:8px;">
+        <button type="button" class="btn-machined" id="preExpDefault">Ex. 11.5 (D₂/D₁=2.0, V₁=4.0)</button>
+        <button type="button" class="btn-machined" id="preExpWide">Wide Step (D₂/D₁=3.0)</button>
+      </div>
       <div class="grid-2">
-        <div class="field-group">
-          <div class="field-label-row"><span>D&#8322; / D&#8321; Ratio</span><span class="val-readout" id="lblExpR">${(p.expD2 / p.expD1).toFixed(2)}</span></div>
-          <input type="range" id="rngExpR" min="1.2" max="4.0" step="0.1" value="${p.expD2 / p.expD1}" />
-        </div>
-        <div class="field-group">
-          <div class="field-label-row"><span>Inlet V&#8321; (m/s)</span><span class="val-readout" id="lblExpV">${p.expV1.toFixed(1)}</span></div>
-          <input type="range" id="rngExpV" min="1.0" max="8.0" step="0.2" value="${p.expV1}" />
-        </div>
+        ${pairedFieldHtml({
+          idBase: "ExpR",
+          paramName: "diameter_ratio",
+          label: "D₂ / D₁ Ratio",
+          unit: "ratio",
+          min: 1.2,
+          max: 4.0,
+          step: 0.1,
+          value: ratioVal,
+          dec: 2,
+        })}
+        ${pairedFieldHtml({
+          idBase: "ExpV",
+          paramName: "V1",
+          label: "Inlet V₁",
+          unit: "m/s",
+          min: 1.0,
+          max: 8.0,
+          step: 0.2,
+          value: p.expV1,
+          dec: 1,
+        })}
       </div>
     `;
-    document.getElementById("rngExpR").oninput = (e) => {
-      const r = parseFloat(e.target.value);
-      p.expD2 = p.expD1 * r;
-      document.getElementById("lblExpR").textContent = r.toFixed(2);
-      debouncedRun("bay04", run, 55);
+    const scheduleExp = () => debouncedRun("bay04", run, 65);
+    bindPairedControl({
+      idBase: "ExpR",
+      obj: p,
+      key: "expD2",
+      dec: 2,
+      clampMin: 1.1,
+      clampMax: 6.0,
+      getVal: () => roundDec(p.expD2 / Math.max(p.expD1, 1e-6), 2),
+      setVal: (r) => {
+        p.expD2 = roundDec(p.expD1 * r, 4);
+      },
+      onAfterChange: scheduleExp,
+    });
+    bindPairedControl({
+      idBase: "ExpV",
+      obj: p,
+      key: "expV1",
+      dec: 1,
+      clampMin: 0.2,
+      clampMax: 20.0,
+      onAfterChange: scheduleExp,
+    });
+    document.getElementById("preExpDefault").onclick = () => {
+      p.expD1 = 0.10;
+      p.expD2 = 0.20;
+      p.expV1 = 4.0;
+      syncPairedValues("ExpR", 2.0, 2);
+      syncPairedValues("ExpV", 4.0, 1);
+      run();
     };
-    document.getElementById("rngExpV").oninput = (e) => {
-      p.expV1 = parseFloat(e.target.value);
-      document.getElementById("lblExpV").textContent = p.expV1.toFixed(1);
-      debouncedRun("bay04", run, 55);
+    document.getElementById("preExpWide").onclick = () => {
+      p.expD1 = 0.10;
+      p.expD2 = 0.30;
+      syncPairedValues("ExpR", 3.0, 2);
+      run();
     };
   } else {
     sub.innerHTML = `
       <div class="preset-row" style="margin-bottom:8px;">
-        <button class="btn-machined" id="preTilt">Horiz Accel (3 m/s&sup2;)</button>
-        <button class="btn-machined" id="preFreeFall">Free Fall (az = -g)</button>
+        <button type="button" class="btn-machined" id="preTilt">Horiz Accel (3 m/s&sup2;)</button>
+        <button type="button" class="btn-machined" id="preStaticTank">Static (ax=0, az=0)</button>
+        <button type="button" class="btn-machined btn-primary" id="btnFreeFallSeq" style="width:100%;">
+          ${p.tankAz <= -9.75 ? "Restore Gravity (az = 0)" : "Drop in Free Fall (az = -g)"}
+        </button>
       </div>
       <div class="grid-2">
-        <div class="field-group">
-          <div class="field-label-row"><span>Horizontal ax (m/s&sup2;)</span><span class="val-readout" id="lblAx">${p.tankAx.toFixed(2)}</span></div>
-          <input type="range" id="rngAx" min="-6.0" max="6.0" step="0.25" value="${p.tankAx}" />
-        </div>
-        <div class="field-group">
-          <div class="field-label-row"><span>Vertical az (m/s&sup2;)</span><span class="val-readout" id="lblAz">${p.tankAz.toFixed(2)}</span></div>
-          <input type="range" id="rngAz" min="-9.81" max="5.0" step="0.25" value="${p.tankAz}" />
-        </div>
+        ${pairedFieldHtml({
+          idBase: "Ax",
+          paramName: "ax",
+          label: "Horizontal ax",
+          unit: "m/s²",
+          min: -6.0,
+          max: 6.0,
+          step: 0.25,
+          value: p.tankAx,
+          dec: 2,
+        })}
+        ${pairedFieldHtml({
+          idBase: "Az",
+          paramName: "az",
+          label: "Vertical az",
+          unit: "m/s²",
+          min: -9.81,
+          max: 5.0,
+          step: 0.25,
+          value: p.tankAz,
+          dec: 2,
+        })}
       </div>
+      <div class="efflux-gauge" id="tankEffluxGauge" style="margin-top:8px;"></div>
     `;
+
+    const scheduleTank = () => {
+      stopActiveAnimations();
+      debouncedRun("bay04", run, 65);
+    };
+    bindPairedControl({
+      idBase: "Ax",
+      obj: p,
+      key: "tankAx",
+      dec: 2,
+      clampMin: -15.0,
+      clampMax: 15.0,
+      onAfterChange: scheduleTank,
+    });
+    bindPairedControl({
+      idBase: "Az",
+      obj: p,
+      key: "tankAz",
+      dec: 2,
+      clampMin: -9.81,
+      clampMax: 15.0,
+      onAfterChange: scheduleTank,
+    });
+
     document.getElementById("preTilt").onclick = () => {
+      stopActiveAnimations();
       p.tankAx = 3.0;
       p.tankAz = 0.0;
-      renderStation04(ctx);
+      syncPairedValues("Ax", p.tankAx, 2);
+      syncPairedValues("Az", p.tankAz, 2);
+      run();
     };
-    document.getElementById("preFreeFall").onclick = () => {
+    document.getElementById("preStaticTank").onclick = () => {
+      stopActiveAnimations();
       p.tankAx = 0.0;
-      p.tankAz = -9.81;
-      renderStation04(ctx);
+      p.tankAz = 0.0;
+      syncPairedValues("Ax", p.tankAx, 2);
+      syncPairedValues("Az", p.tankAz, 2);
+      run();
     };
-    document.getElementById("rngAx").oninput = (e) => {
-      p.tankAx = parseFloat(e.target.value);
-      document.getElementById("lblAx").textContent = p.tankAx.toFixed(2);
-      debouncedRun("bay04", run, 55);
-    };
-    document.getElementById("rngAz").oninput = (e) => {
-      p.tankAz = parseFloat(e.target.value);
-      document.getElementById("lblAz").textContent = p.tankAz.toFixed(2);
-      debouncedRun("bay04", run, 55);
+
+    const ffBtn = document.getElementById("btnFreeFallSeq");
+    ffBtn.onclick = async () => {
+      const targetAz = p.tankAz <= -9.75 ? 0.0 : -9.81;
+      const startAz = finiteOr(p.tankAz, 0.0);
+      const token = ++activeAnimToken;
+
+      if (prefersReducedMotion()) {
+        p.tankAz = targetAz;
+        syncPairedValues("Az", p.tankAz, 2);
+        await run();
+        return;
+      }
+
+      const steps = 10;
+      for (let i = 1; i <= steps; i++) {
+        if (token !== activeAnimToken || ffBtn.isConnected === false || !isBayActive("tank")) {
+          return;
+        }
+        const frac = i / steps;
+        const eased = frac < 0.5 ? 2 * frac * frac : 1 - Math.pow(-2 * frac + 2, 2) / 2;
+        p.tankAz = i === steps ? targetAz : roundDec(startAz + (targetAz - startAz) * eased, 2);
+        syncPairedValues("Az", p.tankAz, 2);
+        await run();
+        if (token !== activeAnimToken || ffBtn.isConnected === false || !isBayActive("tank")) return;
+        if (i < steps) {
+          await new Promise((r) => setTimeout(r, 75));
+        }
+      }
     };
   }
 

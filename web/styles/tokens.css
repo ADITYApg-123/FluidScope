@@ -6,35 +6,59 @@
   --bg-input: #FAF9F6;
   --bg-canvas: #FCFBF9;
   --bg-callout: #FFFBEB;
+  --bg-muted: #ECE8DF;
 
   --seam: #DFDBD2;
   --seam-bright: #C6C0B4;
 
   --ink-primary: #111827;
   --ink-secondary: #374151;
-  --ink-muted: #5B6472;
+  --ink-muted: #525B69;
   --ink-inverse: #FFFFFF;
 
   --accent: #1D4ED8;
   --accent-soft: #EFF6FF;
   --accent-border: #BFDBFE;
 
+  /* Cobalt Active Equation & Highlight Tokens (>= 4.5:1) */
+  --cobalt: #1D4ED8;
+  --cobalt-soft: #EFF6FF;
+  --cobalt-border: #93C5FD;
+  --cobalt-ink: #1E40AF;
+  --eq-active-bg: #EFF6FF;
+  --eq-active-border: #93C5FD;
+  --eq-active-ink: #1E40AF;
+
   --teal: #0F766E;
   --teal-soft: #F0FDFA;
 
+  /* Amber Perturbation / Alert Tokens (>= 4.5:1) */
   --amber: #B45309;
   --amber-bright: #D97706;
   --amber-soft: #FEF3C7;
-  --amber-border: #FCD34D;
+  --amber-border: #F59E0B;
+  --amber-ink: #92400E;
+  --eq-alert-bg: #FEF3C7;
+  --eq-alert-border: #F59E0B;
+  --eq-alert-ink: #92400E;
 
+  /* Coral Trap / Broken Assumption Tokens (>= 4.5:1) */
   --coral: #DC2626;
   --coral-soft: #FEF2F2;
   --coral-border: #FECACA;
   --coral-ink: #991B1B;
 
+  /* Verified / Valid Status Tokens (>= 4.5:1) */
   --ok-green: #15803D;
+  --ok-ink: #166534;
   --ok-soft: #DCFCE7;
   --ok-border: #86EFAC;
+
+  /* Cool Slate-Indigo Insight Tokens (Distinct from --coral* errors/traps) */
+  --insight-bg: #EEF2FF;
+  --insight-border: #A5B4FC;
+  --insight-ink: #312E81;
+  --insight-accent: #4338CA;
 
   --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.05);
   --shadow-md: 0 6px 18px rgba(17, 24, 39, 0.07);
@@ -51,6 +75,7 @@
   --bg-input: #0D1117;
   --bg-canvas: #090D12;
   --bg-callout: #1C1917;
+  --bg-muted: #1C2128;
 
   --seam: #30363D;
   --seam-bright: #484F58;
@@ -64,22 +89,45 @@
   --accent-soft: rgba(88, 166, 255, 0.14);
   --accent-border: rgba(88, 166, 255, 0.35);
 
+  /* Cobalt Active Equation & Highlight Tokens (>= 4.5:1) */
+  --cobalt: #58A6FF;
+  --cobalt-soft: #13253D;
+  --cobalt-border: rgba(88, 166, 255, 0.45);
+  --cobalt-ink: #93C5FD;
+  --eq-active-bg: #13253D;
+  --eq-active-border: rgba(88, 166, 255, 0.45);
+  --eq-active-ink: #93C5FD;
+
   --teal: #2DD4BF;
   --teal-soft: rgba(45, 212, 191, 0.12);
 
+  /* Amber Perturbation / Alert Tokens (>= 4.5:1) */
   --amber: #F59E0B;
   --amber-bright: #FBBF24;
-  --amber-soft: rgba(245, 158, 11, 0.14);
-  --amber-border: rgba(245, 158, 11, 0.38);
+  --amber-soft: rgba(245, 158, 11, 0.15);
+  --amber-border: rgba(245, 158, 11, 0.42);
+  --amber-ink: #FCD34D;
+  --eq-alert-bg: #2A1F0B;
+  --eq-alert-border: rgba(245, 158, 11, 0.48);
+  --eq-alert-ink: #FCD34D;
 
+  /* Coral Trap / Broken Assumption Tokens (>= 4.5:1) */
   --coral: #F87171;
   --coral-soft: rgba(248, 113, 113, 0.14);
   --coral-border: rgba(248, 113, 113, 0.38);
   --coral-ink: #FCA5A5;
 
+  /* Verified / Valid Status Tokens (>= 4.5:1) */
   --ok-green: #3FB950;
+  --ok-ink: #7EE787;
   --ok-soft: rgba(63, 185, 80, 0.14);
   --ok-border: rgba(63, 185, 80, 0.38);
+
+  /* Cool Slate-Indigo Insight Tokens (Distinct from --coral* errors/traps) */
+  --insight-bg: #1B2136;
+  --insight-border: #3B4978;
+  --insight-ink: #C7D2FE;
+  --insight-accent: #818CF8;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
@@ -108,4 +156,8 @@ html, body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }

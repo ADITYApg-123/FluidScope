@@ -1,79 +1,161 @@
 /**
  * Dedicated Landing Page (Overview) for FluidScope AI.
+ * Renders Category-Filterable 12-Lab Simulator Grid and 12-Row Clickable Textbook Coverage Map.
  */
 import { renderTex } from "./math_ui.js";
+import { LAB_CATALOG } from "./core/store.js";
 
-const FEATURED_LABS = [
-  {
-    chapter: "Ch. 3.3 · Ex. 3.10",
+const LAB_OVERVIEW_META = {
+  "2A": {
     tag: "Kinematics",
-    title: "Streamline vs. Pathline vs. Streakline",
+    topic: "Unsteady Kinematics & Stokes' Circulation Check",
     desc: "Watch an accelerating unsteady field rotate and stretch fluid elements while dye streaks trace a hyperbola distinct from straight particle paths.",
-    trap: "Exam Trap: Assuming all three flow lines collapse together simply because vertical velocity v = v₀ is constant.",
-    bay: "02",
-    sub: "kinematics",
+    callout: "Exam Trap: Assuming streamlines, pathlines, and streaklines collapse together simply because vertical velocity v = v₀ is constant.",
+    tone: "trap",
+    twistSummary: "Streamline vs. pathline vs. streakline divergence plus local vs. convective acceleration",
   },
-  {
-    chapter: "Ch. 4.5 · Eq. 4.43",
+  "2B": {
     tag: "Vortex Flow",
-    title: "Forced Vortex Bernoulli Sign Reversal",
-    desc: "Compare radial Euler pressure rise against constant-head Bernoulli inside a rotating impeller or cylindrical swirl.",
-    trap: "Exam Trap: Applying p₁ + ½ρV₁² = p₂ + ½ρV₂² across streamlines gives the exact opposite pressure sign.",
-    bay: "02",
-    sub: "vortex",
+    topic: "Free, Forced, Rankine & Spiral Vortices",
+    desc: "Compare exact radial Euler pressure rise against constant-head Bernoulli inside forced, free, Rankine, and spiral swirling flows.",
+    callout: "Exam Trap: Applying p₁ + ½ρV₁² = p₂ + ½ρV₂² across rotational streamlines predicts the exact opposite pressure sign.",
+    tone: "trap",
+    twistSummary: "∂H/∂n = V·Ωz/g breaks cross-stream Bernoulli inside rotational cores",
   },
-  {
-    chapter: "Ch. 4.5 · Ex. 4.8",
+  "2C": {
     tag: "Hydrostatics",
-    title: "Rotating Open Vessel & Base Uncovering",
-    desc: "See the liquid paraboloid touch the rim, spill excess volume overhead, and expose a dry circular center radius R₁ on the base.",
-    trap: "Exam Trap: Conserving full initial liquid volume at high RPM instead of accounting for rim overflow.",
-    bay: "02",
-    sub: "vessel",
+    topic: "Rotating Open Vessel & Base Uncovering",
+    desc: "Spin an open cylindrical tank to watch the liquid paraboloid touch the rim, spill excess volume overhead, and expose a dry floor radius R₁.",
+    callout: "Exam Trap: Conserving full initial liquid volume at high RPM instead of accounting for rim overflow.",
+    tone: "trap",
+    twistSummary: "Liquid spills at the top rim before uncovering a dry circular center base R₁",
   },
-  {
-    chapter: "Ch. 9.6 · Eq. 9.41–9.42",
+  "2D": {
+    tag: "Potential Flow",
+    topic: "Potential Superposition & Magnus Lift Cylinder",
+    desc: "Superpose a uniform stream, doublet, and circulation Γ around a cylinder to inspect Cp contours, lift, and detached stagnation points.",
+    callout: "Exam Trap: Expecting stagnation points to stay attached to the cylinder surface once |Γ| exceeds 4πU∞a.",
+    tone: "trap",
+    twistSummary: "Kutta–Joukowski lift L' = -ρU∞Γ with zero D'Alembert drag and off-wall stagnation",
+  },
+  "3A": {
     tag: "Boundary Layer",
-    title: "Adverse Pressure Gradient & Separation",
-    desc: "Solve the exact Falkner–Skan ODE and Pohlhausen profiles to inspect where interior inflection points force backflow and stall.",
-    trap: "Exam Trap: Mistaking wall curvature (∂²u/∂y² = 0) or ideal potential pressure recovery (Cd = 0) for real separation.",
-    bay: "03",
-    sub: "separation",
+    topic: "Falkner–Skan & Boundary-Layer Separation",
+    desc: "Solve the exact Falkner–Skan ODE and Pohlhausen profiles to inspect where adverse pressure gradients force interior inflection and stall.",
+    callout: "Exam Trap: Mistaking ideal potential pressure recovery (Cd = 0) or attached monotonic profiles for separated wakes.",
+    tone: "trap",
+    twistSummary: "Adverse dp/dx > 0 forces positive wall curvature and an interior inflection before τw = 0",
   },
-  {
-    chapter: "Ch. 12.4 · Ex. 12.11",
-    tag: "Conservation",
-    title: "Hydraulic Jump Energy vs. Momentum",
-    desc: "Verify why subcritical conjugate depth h₂ follows specific force conservation while turbulent rollers dissipate ~81 kW of head.",
-    trap: "Exam Trap: Solving constant specific energy Es(h₂) = Es(h₁) overpredicts downstream depth h₂ severely.",
-    bay: "04",
-    sub: "jump",
+  "3B": {
+    tag: "Channel Flow",
+    topic: "Generalized Couette–Poiseuille Channel Backflow",
+    desc: "Balance moving-wall Couette shear against an opposing axial pressure gradient across the full transition to pure zero-net-flux recirculation.",
+    callout: "Exam Trap: Assuming a linear velocity profile holds whenever nonzero pressure gradient P ≠ 0 drives backflow.",
+    tone: "trap",
+    twistSummary: "Lower wall shear vanishes at P = -1 and net channel flux vanishes at P = -3",
   },
-  {
-    chapter: "Ch. 10 · Numba D2Q9",
+  "3C": {
+    tag: "Multiphase",
+    topic: "Immiscible Two-Layer Channel Flow",
+    desc: "Simulate two immiscible channel fluids of differing viscosity to inspect velocity continuity, shear stress matching, and peak-velocity shift.",
+    callout: "Exam Trap: Equating du₁/dy = du₂/dy across fluids of unequal viscosity instead of matching shear τ = μ(du/dy).",
+    tone: "trap",
+    twistSummary: "Interface shear continuity μ₁(du₁/dy) = μ₂(du₂/dy) produces a slope kink and off-center peak",
+  },
+  "3D": {
+    tag: "Rheology & Slip",
+    topic: "Navier Wall Slip & Herschel–Bulkley Yield Fluid",
+    desc: "Combine Herschel–Bulkley yield stress with Navier wall slip to observe rigid plug cores and hydrophobic wall speed elevation.",
+    callout: "Exam Trap: Applying classical no-slip parabolic Poiseuille formulas when fluid slips at the wall or locks below τy.",
+    tone: "trap",
+    twistSummary: "Unyielded center plug core |τ| ≤ τy plus nonzero Navier boundary slip velocity uw",
+  },
+  "4A": {
     tag: "Live CFD",
-    title: "2D Lattice-Boltzmann Wind Tunnel",
-    desc: "Step an interactive D2Q9 incompressible fluid tunnel past circular cylinders, tandem bodies, backward steps, and wake splitter plates.",
-    trap: "Physics Insight: Observe how a splitter plate suppresses Kármán vortex shedding wake oscillations.",
-    bay: "04",
-    sub: "lbm",
+    topic: "2D LBM Wind Tunnel & Kármán Vortex Wake",
+    desc: "Step an interactive D2Q9 Lattice–Boltzmann wind tunnel past circular cylinders, tandem bodies, backward steps, or custom drawn obstacles.",
+    callout: "Physics Insight: Observe how adding a rigid wake splitter plate suppresses alternating Kármán vortex shedding oscillations.",
+    tone: "insight",
+    twistSummary: "Unsteady viscous D2Q9 vortex shedding suppressed by a wake splitter plate",
   },
-];
+  "4B": {
+    tag: "Open Channel",
+    topic: "Open-Channel Hydraulic Jump Dissipation",
+    desc: "Verify why subcritical conjugate depth h₂ follows specific force conservation while turbulent hydraulic jump rollers dissipate mechanical energy.",
+    callout: "Exam Trap: Solving constant specific energy Es(h₂) = Es(h₁) across a jump severely overpredicts downstream depth h₂.",
+    tone: "trap",
+    twistSummary: "Integral specific force Fs holds across the jump while rollers dissipate head hj",
+  },
+  "4C": {
+    tag: "Internal Flow",
+    topic: "Borda–Carnot Sudden Pipe Expansion",
+    desc: "Compare Borda–Carnot momentum pressure recovery across a sudden pipe enlargement against frictionless Bernoulli predictions.",
+    callout: "Exam Trap: Using ideal Δp = ½ρ(V₁² - V₂²) ignores annular dead-zone eddies holding shoulder pressure p' ≈ p₁.",
+    tone: "trap",
+    twistSummary: "Corner eddies hold shoulder pressure p' ≈ p₁, producing Borda–Carnot loss hL = (V₁ - V₂)²/2g",
+  },
+  "4D": {
+    tag: "Non-Inertial",
+    topic: "Accelerating & Free-Falling Tank Hydrostatics",
+    desc: "Tilt a tank horizontally or drop it into vertical free fall (az = -g) to watch isobars flatten and bottom orifice efflux drop to zero.",
+    callout: "Exam Trap: Applying static Torricelli v = √(2gh) in an accelerating or free-falling container predicts leakage when none occurs.",
+    tone: "trap",
+    twistSummary: "Effective gravity g_eff = g + az drops to zero in free fall (az = -g), halting orifice flow",
+  },
+};
 
-const CHAPTER_MATRIX = [
-  ["Ch. 1.6 & Ch. 8", "Navier Wall Slip & Herschel–Bulkley Yield Fluid", "FluidScope Viscous Lab (3D)", "Unyielded center plug core |τ| ≤ τ_y + boundary slip velocity u_w", "03", "slip_hb"],
-  ["Ch. 2.9 (Eq. 2.86)", "Accelerating & Free-Falling Tank Hydrostatics", "Conservation Lab (4D)", "Zero hydrostatic gradient in free fall (az = -g ⇒ orifice does not leak)", "04", "tank"],
-  ["Ch. 3.3 (Ex. 3.10)", "Unsteady Kinematics & Stokes' Circulation Check", "Kinematics Lab (2A)", "Streamline vs. Pathline vs. Streakline divergence + element shear/rotation", "02", "kinematics"],
-  ["Ch. 4.5 (Ex. 4.7–4.8)", "Free, Forced, Rankine & Spiral Vortices", "Vortex & Tank Labs (2B–2C)", "∂H/∂n = VΩz/g breaks cross-stream Bernoulli in rotational cores", "02", "vortex"],
-  ["Ch. 7 (Kutta–Joukowski)", "Potential Superposition & Magnus Lift Cylinder", "Magnus Lab (2D)", "Circulation Γ detaches stagnation points while creating L' = -ρU∞Γ", "02", "potential"],
-  ["Ch. 8.3 (Ex. 8.2–8.4)", "Two-Layer Channel & Couette–Poiseuille Backflow", "Viscous Channel Labs (3B–3C)", "μ₁(du₁/dy) = μ₂(du₂/dy) interface kink & Q = 0 pure recirculation at P = -3", "03", "twolayer"],
-  ["Ch. 9.6 (Eq. 9.41)", "Falkner–Skan & Boundary-Layer Inflection", "BL Separation Lab (3A)", "Adverse dp/dx > 0 forces positive wall curvature before τw hits zero", "03", "separation"],
-  ["Ch. 11.5 & Ch. 12.4", "Borda–Carnot Pipe Expansion & Hydraulic Jump", "Conservation Labs (4B–4C)", "Eddy dissipation invalidates frictionless Bernoulli; momentum holds", "04", "expansion"],
+const FILTER_CATEGORIES = [
+  { id: "all", label: "All 12" },
+  { id: "kinematics", label: "Kinematics" },
+  { id: "viscous", label: "Viscous" },
+  { id: "conservation", label: "Conservation" },
 ];
 
 export function renderOverview(handlers) {
   const host = document.getElementById("overviewView");
   if (!host) return;
+
+  let activeCategory = "all";
+
+  const getFilteredLabs = () =>
+    activeCategory === "all"
+      ? LAB_CATALOG
+      : LAB_CATALOG.filter((item) => item.category === activeCategory);
+
+  const renderLabCards = () => {
+    const grid = document.getElementById("overviewLabsGrid");
+    if (!grid) return;
+
+    const labs = getFilteredLabs();
+    grid.innerHTML = labs
+      .map((item) => {
+        const meta = LAB_OVERVIEW_META[item.id] || {};
+        const isInsight = meta.tone === "insight";
+        const calloutClass = isInsight ? "lab-card-trap insight-callout" : "lab-card-trap";
+        return `
+          <article class="lab-card" data-lab-id="${item.id}" data-lab-cat="${item.category}">
+            <div>
+              <div class="lab-card-meta">
+                <span>${item.chapter}</span>
+                <span class="lab-badge">${meta.tag || item.category}</span>
+              </div>
+              <h3 class="lab-card-title">${item.label}</h3>
+              <p class="lab-card-desc">${meta.desc || ""}</p>
+              <div class="${calloutClass}">${meta.callout || ""}</div>
+            </div>
+            <div class="lab-card-footer">
+              <span class="lab-card-footer-meta">Station ${item.bay} · ${item.id}</span>
+              <button type="button" class="btn-machined btn-primary" data-launch-bay="${item.bay}" data-launch-sub="${item.sub}">Open Lab &rarr;</button>
+            </div>
+          </article>
+        `;
+      })
+      .join("");
+
+    grid.querySelectorAll("[data-launch-bay]").forEach((btn) => {
+      btn.onclick = () => handlers.openLab(btn.dataset.launchBay, btn.dataset.launchSub);
+    });
+  };
 
   host.innerHTML = `
     <!-- Hero Band -->
@@ -91,9 +173,9 @@ export function renderOverview(handlers) {
         </p>
 
         <div class="hero-cta-row">
-          <button class="btn-cta-primary" id="heroBtnLabs">Launch Physics Labs &rarr;</button>
-          <button class="btn-cta-secondary" id="heroBtnTranslator">AI Problem Translator</button>
-          <button class="btn-cta-secondary" id="heroBtnQuiz">Try 12-Twist Exam Quiz</button>
+          <button type="button" class="btn-cta-primary" id="heroBtnLabs">Launch Physics Labs &rarr;</button>
+          <button type="button" class="btn-cta-secondary" id="heroBtnTranslator">AI Problem Translator</button>
+          <button type="button" class="btn-cta-secondary" id="heroBtnQuiz">Try 12-Twist Exam Quiz</button>
         </div>
 
         <div class="hero-pillars">
@@ -120,13 +202,13 @@ export function renderOverview(handlers) {
         </div>
 
         <div>
-          <div style="font-family:var(--font-display);font-weight:700;font-size:15.5px;margin-bottom:4px;">
+          <div class="specimen-title">
             Forced Vortex Radial Pressure: Why Speed Increase Doesn&rsquo;t Drop Pressure
           </div>
-          <div style="font-size:12.5px;color:var(--ink-secondary);line-height:1.45;">
-            Solid-body rotation $v_\\theta = \\omega r$ gives vorticity $\\Omega_z = 2\\omega \\neq 0$, so total head $H$ rises outward across streamlines:
+          <div class="specimen-desc">
+            Solid-body rotation <strong>v<sub>&theta;</sub> = &omega;r</strong> produces nonzero vorticity <strong>&Omega;<sub>z</sub> = 2&omega;</strong>, so total mechanical head <strong>H</strong> rises outward across streamlines:
           </div>
-          <div id="heroSpecimenEq" style="margin-top:8px;padding:8px 10px;background:var(--bg-bay);border:1px solid var(--seam);border-radius:5px;text-align:center;"></div>
+          <div id="heroSpecimenEq" class="specimen-eq-box"></div>
         </div>
 
         <div class="specimen-compare">
@@ -142,7 +224,7 @@ export function renderOverview(handlers) {
           </div>
         </div>
 
-        <button class="btn-machined btn-primary" id="heroBtnSpecimen" style="width:100%;">
+        <button type="button" class="btn-machined btn-primary" id="heroBtnSpecimen" style="width:100%;">
           Inspect Live Forced Vortex Simulation &rarr;
         </button>
       </aside>
@@ -166,7 +248,7 @@ export function renderOverview(handlers) {
           <div class="step-num">STEP 02 · PERTURB &amp; PROBE</div>
           <div class="step-title">Move Real Dimensionless Sliders</div>
           <div class="step-desc">
-            Drag Reynolds number, Hartree &beta;, Navier slip length, Froude number, or tank acceleration. Hover either canvas to inspect exact $(u, v, |V|, \\Omega_z)$ vectors and curve values.
+            Drag Reynolds number, Hartree &beta;, Navier slip length, Froude number, or tank acceleration. Hover either canvas to inspect live velocity <strong>(u, v, |V|, &Omega;<sub>z</sub>)</strong> and curve coordinates.
           </div>
         </div>
         <div class="step-card">
@@ -179,66 +261,75 @@ export function renderOverview(handlers) {
       </div>
     </section>
 
-    <!-- Featured Interactive Lab Cards -->
+    <!-- 12 Interactive Visual Simulators Grid with Category Filter Pills -->
     <section>
       <div class="section-heading-row">
-        <h2 class="section-title">Featured Interactive Physics Labs</h2>
-        <span class="section-sub">Click any module to open its calibrated live workspace</span>
+        <div>
+          <h2 class="section-title">Interactive Physics Simulators (12 Labs)</h2>
+          <span class="section-sub">Filter by mechanics family or launch any calibrated live workbench</span>
+        </div>
+        <div class="overview-filter-bar" id="overviewCategoryFilters" role="tablist" aria-label="Filter simulators by category">
+          ${FILTER_CATEGORIES.map(
+            (cat) => `
+            <button
+              type="button"
+              class="overview-filter-pill ${cat.id === activeCategory ? "active" : ""}"
+              data-overview-cat="${cat.id}"
+              role="tab"
+              aria-selected="${cat.id === activeCategory ? "true" : "false"}"
+            >${cat.label}</button>
+          `
+          ).join("")}
+        </div>
       </div>
-      <div class="showcase-grid" id="overviewLabsGrid">
-        ${FEATURED_LABS.map(
-          (lab, idx) => `
-          <article class="lab-card">
-            <div>
-              <div class="lab-card-meta">
-                <span>${lab.chapter}</span>
-                <span class="lab-badge">${lab.tag}</span>
-              </div>
-              <h3 class="lab-card-title">${lab.title}</h3>
-              <p style="font-size:13px;color:var(--ink-secondary);line-height:1.5;margin-bottom:10px;">${lab.desc}</p>
-              <div class="lab-card-trap">${lab.trap}</div>
-            </div>
-            <div class="lab-card-footer">
-              <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-muted);">Station ${lab.bay} · Live Solver</span>
-              <button class="btn-machined btn-primary" data-launch-idx="${idx}">Open Lab &rarr;</button>
-            </div>
-          </article>
-        `
-        ).join("")}
-      </div>
+      <div class="showcase-grid" id="overviewLabsGrid"></div>
     </section>
 
-    <!-- Complete Textbook Chapter Map -->
+    <!-- Complete 12-Row Clickable Textbook Coverage Map -->
     <section>
       <div class="section-heading-row">
         <h2 class="section-title">Som, Biswas &amp; Chakraborty (3rd Ed.) Coverage Map</h2>
-        <span class="section-sub">Every chapter connected to an exact mathematical kernel</span>
+        <span class="section-sub">All 12 chapters and examples — click any row to launch its live simulation</span>
       </div>
       <div class="chapter-table-wrap">
-        <table class="chapter-table">
+        <table class="chapter-table" id="chapterCoverageTable">
           <thead>
             <tr>
               <th>Textbook Ref</th>
               <th>Topic &amp; Governing Physics</th>
               <th>Interactive Lab</th>
               <th>Core Concept Twist Demonstrated</th>
-              <th></th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            ${CHAPTER_MATRIX.map(
-              ([ref, topic, labName, twist, bay, sub]) => `
-              <tr>
-                <td style="font-family:var(--font-mono);font-size:12px;white-space:nowrap;">${ref}</td>
-                <td style="font-weight:600;color:var(--ink-primary);">${topic}</td>
-                <td style="color:var(--accent);font-weight:500;">${labName}</td>
-                <td style="color:var(--ink-secondary);">${twist}</td>
-                <td style="text-align:right;">
-                  <button class="btn-machined btn-xs" data-chapter-bay="${bay}" data-chapter-sub="${sub}">Launch</button>
-                </td>
-              </tr>
-            `
-            ).join("")}
+            ${LAB_CATALOG.map((item) => {
+              const meta = LAB_OVERVIEW_META[item.id] || {};
+              return `
+                <tr
+                  class="chapter-row"
+                  tabindex="0"
+                  role="button"
+                  aria-label="Launch ${item.label}"
+                  data-chapter-bay="${item.bay}"
+                  data-chapter-sub="${item.sub}"
+                >
+                  <td class="chapter-ref-cell">${item.chapter}</td>
+                  <td class="chapter-topic-cell">${meta.topic || item.shortLabel}</td>
+                  <td class="chapter-lab-cell">${item.label}</td>
+                  <td class="chapter-twist-cell">${meta.twistSummary || ""}</td>
+                  <td style="text-align:right;">
+                    <button
+                      type="button"
+                      class="btn-machined btn-xs"
+                      tabindex="-1"
+                      data-chapter-bay="${item.bay}"
+                      data-chapter-sub="${item.sub}"
+                    >Launch &rarr;</button>
+                  </td>
+                </tr>
+              `;
+            }).join("")}
           </tbody>
         </table>
       </div>
@@ -248,33 +339,45 @@ export function renderOverview(handlers) {
   // Render the KaTeX equation inside the hero specimen
   const eqBox = document.getElementById("heroSpecimenEq");
   if (eqBox) {
-    renderTex(eqBox, "\\frac{\\partial H}{\\partial n} = \\frac{V\\,\\Omega_z}{g} = \\frac{2\\omega^2 r}{g} \\neq 0", false);
+    renderTex(
+      eqBox,
+      "\\frac{\\partial H}{\\partial n} = \\frac{V\\,\\Omega_z}{g} = \\frac{2\\omega^2 r}{g} \\neq 0",
+      false
+    );
   }
 
-  // Replace inline $...$ markers in hero specimen description cleanly
-  const heroDesc = host.querySelector(".hero-specimen-card div[style*='line-height:1.45']");
-  if (heroDesc) {
-    heroDesc.innerHTML =
-      "Solid-body rotation <strong>v<sub>&theta;</sub> = &omega;r</strong> produces nonzero vorticity <strong>&Omega;<sub>z</sub> = 2&omega;</strong>, so total mechanical head <strong>H</strong> rises outward across streamlines:";
-  }
+  // Initial render of all 12 cards
+  renderLabCards();
 
-  const step2 = host.querySelectorAll(".step-desc")[1];
-  if (step2) {
-    step2.innerHTML =
-      "Drag Reynolds number, Hartree &beta;, Navier slip length, Froude number, or tank acceleration. Hover either canvas to inspect live velocity <strong>(u, v, |V|, &Omega;<sub>z</sub>)</strong> and curve coordinates.";
-  }
+  // Bind category filter pills
+  host.querySelectorAll("[data-overview-cat]").forEach((pill) => {
+    pill.onclick = () => {
+      activeCategory = pill.dataset.overviewCat || "all";
+      host.querySelectorAll("[data-overview-cat]").forEach((p) => {
+        const isSel = p.dataset.overviewCat === activeCategory;
+        p.classList.toggle("active", isSel);
+        p.setAttribute("aria-selected", String(isSel));
+      });
+      renderLabCards();
+    };
+  });
 
+  // Hero CTAs
   document.getElementById("heroBtnLabs").onclick = () => handlers.openLab("02", "kinematics");
   document.getElementById("heroBtnTranslator").onclick = () => handlers.openView("01");
   document.getElementById("heroBtnQuiz").onclick = () => handlers.openView("05");
   document.getElementById("heroBtnSpecimen").onclick = () => handlers.openLab("02", "vortex");
 
-  host.querySelectorAll("[data-launch-idx]").forEach((btn) => {
-    const lab = FEATURED_LABS[Number(btn.dataset.launchIdx)];
-    btn.onclick = () => handlers.openLab(lab.bay, lab.sub);
-  });
-
-  host.querySelectorAll("[data-chapter-bay]").forEach((btn) => {
-    btn.onclick = () => handlers.openLab(btn.dataset.chapterBay, btn.dataset.chapterSub);
+  // Bind every entire clickable <tr> row + keyboard Enter/Space
+  host.querySelectorAll("tr.chapter-row[data-chapter-bay]").forEach((row) => {
+    const launch = () => handlers.openLab(row.dataset.chapterBay, row.dataset.chapterSub);
+    row.onclick = launch;
+    row.onkeydown = (e) => {
+      if (e.target && e.target.tagName === "BUTTON") return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        launch();
+      }
+    };
   });
 }

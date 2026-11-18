@@ -1,4 +1,9 @@
-/* Panel Cards in Sidebar */
+/* ==========================================================================
+   LAB CONTROL PANELS, PAIRED INPUTS, LBM DRAW TOOLBAR & DIAGNOSTIC DRAWERS
+   Light & Dark WCAG-AA (>= 4.5:1 via tokens), >= 12px font floor,
+   tabular-nums numeric alignment, mobile 390x844 zero horizontal overflow.
+   ========================================================================== */
+
 .panel-bay {
   background: var(--bg-bay);
   border: 1px solid var(--seam);
@@ -8,6 +13,8 @@
   flex-direction: column;
   gap: 10px;
   box-shadow: var(--shadow-sm);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .bay-header {
@@ -22,22 +29,24 @@
   color: var(--ink-primary);
   border-bottom: 1px solid var(--seam);
   padding-bottom: 7px;
+  min-width: 0;
 }
 
 .tag-mono {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--cobalt-ink);
   background: var(--accent-soft);
   border: 1px solid var(--accent-border);
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 4px;
 }
 
 .mode-switch-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -53,7 +62,7 @@
   cursor: pointer;
   text-align: center;
   line-height: 1.3;
-  transition: all 0.12s;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 
 .mode-btn:hover {
@@ -65,25 +74,151 @@
 .mode-btn.active {
   background: var(--accent-soft);
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--cobalt-ink);
   font-weight: 600;
 }
 
-/* Inputs & Sliders */
+/* Segmented Toggles (.seg-toggle / .seg-btn) */
+.seg-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px;
+  background: var(--bg-input);
+  border: 1px solid var(--seam-bright);
+  border-radius: 6px;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.seg-toggle-full {
+  display: flex;
+  width: 100%;
+}
+
+.seg-toggle-full .seg-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+  text-align: center;
+  justify-content: center;
+}
+
+.seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 28px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--ink-secondary);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  padding: 4px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.seg-btn:hover {
+  color: var(--ink-primary);
+  background: var(--bg-sub);
+}
+
+.seg-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.seg-btn.active,
+[data-theme="dark"] .seg-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink-inverse);
+  font-weight: 600;
+}
+
+.seg-btn.active:hover,
+[data-theme="dark"] .seg-btn.active:hover {
+  background: var(--accent);
+  color: var(--ink-inverse);
+  filter: brightness(1.06);
+}
+
+/* Inputs, Sliders & Paired Numeric Controls */
 .field-group {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  min-width: 0;
 }
 
-.field-label-row {
+.slider-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field-label-row,
+.slider-label-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   font-size: 12px;
   font-weight: 500;
   color: var(--ink-secondary);
+  min-width: 0;
+}
+
+.slider-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.num-input,
+input[type="number"].num-input {
+  width: 72px;
+  min-width: 60px;
+  max-width: 100%;
+  padding: 3px 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--seam-bright);
+  border-radius: 4px;
+  color: var(--ink-primary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  line-height: 1.3;
+}
+
+.num-input:focus,
+input[type="number"].num-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.unit-tag {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  min-width: 22px;
+  white-space: nowrap;
 }
 
 .val-readout {
@@ -92,13 +227,16 @@
   font-weight: 600;
   color: var(--ink-primary);
   background: var(--bg-sub);
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 3px;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
-.text-input, .select-input {
+.text-input,
+.select-input {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   background: var(--bg-input);
   border: 1px solid var(--seam-bright);
   border-radius: 5px;
@@ -111,10 +249,12 @@
 textarea.text-input,
 .mono-input {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 12.5px;
 }
 
-.text-input:focus, .select-input:focus {
+.text-input:focus,
+.select-input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
@@ -133,59 +273,400 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   background: var(--accent);
   border: 2px solid var(--bg-bay);
   border-radius: 50%;
   box-shadow: var(--shadow-sm);
 }
 
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
 .grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  min-width: 0;
+}
+
+.grid-2 > * {
+  min-width: 0;
 }
 
 .preset-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px;
 }
 
+/* Machined Buttons (Contrast-compliant in Light & Dark modes) */
 .btn-machined {
   background: var(--bg-sub);
   border: 1px solid var(--seam-bright);
   border-radius: 5px;
   color: var(--ink-primary);
   font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   font-weight: 500;
   padding: 6px 10px;
   cursor: pointer;
-  transition: all 0.12s;
+  line-height: 1.3;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, filter 0.12s;
 }
 
-.btn-machined:hover {
+.btn-machined:hover:not(:disabled) {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--cobalt-ink);
   background: var(--accent-soft);
+}
+
+.btn-machined:disabled {
+  cursor: not-allowed;
+  color: var(--ink-muted);
+  background: var(--bg-sub);
+  border-color: var(--seam);
+}
+
+.btn-machined:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #FFFFFF;
+  color: var(--ink-inverse);
   font-weight: 600;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: var(--accent);
-  color: #FFFFFF;
-  filter: brightness(1.08);
+  border-color: var(--accent);
+  color: var(--ink-inverse);
+  filter: brightness(1.06);
 }
 
 .btn-xs {
   padding: 4px 9px;
-  font-size: 11.5px;
+  font-size: 12px;
+}
+
+/* Lab 4A Interactive LBM Draw Toolbar, Status Badge & Step Scrubber */
+.lbm-toolbar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--seam);
+  border-radius: 6px;
+  background: var(--bg-input);
+  min-width: 0;
+}
+
+.lbm-draw-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.draw-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 6px 8px;
+  background: var(--bg-sub);
+  border: 1px solid var(--seam-bright);
+  border-radius: 5px;
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.draw-tool-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--cobalt-ink);
+}
+
+.draw-tool-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.draw-tool-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink-inverse);
+  box-shadow: 0 0 0 2px var(--accent-border);
+}
+
+.draw-tool-clear {
+  background: var(--coral-soft);
+  border-color: var(--coral-border);
+  color: var(--coral-ink);
+}
+
+.draw-tool-clear:hover {
+  background: var(--coral-soft);
+  border-color: var(--coral);
+  color: var(--coral-ink);
+  filter: brightness(0.98);
+}
+
+.lbm-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.lbm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cobalt-ink);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  padding: 2px 8px;
+  border-radius: 4px;
+  max-width: 100%;
+}
+
+.lbm-badge.is-drawing {
+  color: var(--amber-ink);
+  background: var(--amber-soft);
+  border-color: var(--amber-border);
+}
+
+.lbm-badge.is-empty {
+  color: var(--ink-secondary);
+  background: var(--bg-sub);
+  border-color: var(--seam-bright);
+}
+
+.lbm-step-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lab 4D Free-Fall Orifice Efflux Comparison Gauge */
+.efflux-gauge {
+  padding: 10px;
+  border: 1px solid var(--seam);
+  border-radius: 6px;
+  background: var(--bg-input);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+.efflux-gauge.is-freefall {
+  border-color: var(--coral-border);
+  background: var(--coral-soft);
+}
+
+.efflux-gauge-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.efflux-gauge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+  gap: 8px;
+}
+
+.efflux-card {
+  min-width: 0;
+  padding: 7px 9px;
+  border-radius: 5px;
+  border: 1px solid var(--seam);
+  background: var(--bg-bay);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.efflux-card.efflux-true {
+  border-color: var(--accent-border);
+}
+
+.efflux-card.efflux-naive {
+  border-color: var(--coral-border);
+}
+
+.efflux-card.efflux-freefall {
+  border-color: var(--coral);
+}
+
+.efflux-k {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.efflux-v {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  overflow-wrap: break-word;
+}
+
+.efflux-card.efflux-freefall .efflux-v {
+  color: var(--coral-ink);
+}
+
+.efflux-card.efflux-naive .efflux-v {
+  color: var(--coral-ink);
+}
+
+.efflux-card.efflux-true .efflux-v {
+  color: var(--cobalt-ink);
+}
+
+.efflux-note {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-secondary);
+}
+
+.efflux-meter-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-sub);
+  border: 1px solid var(--seam);
+  overflow: hidden;
+}
+
+.efflux-meter-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.16s ease;
+}
+
+.efflux-card.efflux-naive .efflux-meter-fill {
+  background: var(--coral);
+}
+
+.efflux-card.efflux-freefall .efflux-meter-fill {
+  background: var(--coral);
+}
+
+/* Collapsible Full Diagnostics & Formulas Drawer Details */
+.diag-details {
+  margin-top: 10px;
+  border: 1px solid var(--seam);
+  border-radius: 6px;
+  background: var(--bg-input);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  max-width: 100%;
+}
+
+.diag-details > summary {
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-primary);
+  user-select: none;
+  list-style-position: inside;
+  padding: 2px 0;
+}
+
+.diag-details > summary:hover {
+  color: var(--accent);
+}
+
+.diag-details[open] > summary {
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--seam);
+}
+
+.diag-details .diag-val {
+  overflow-x: auto;
+  max-width: 100%;
+  font-size: 12.5px;
+}
+
+/* Mobile 390x844 Zero Horizontal Overflow */
+@media (max-width: 480px) {
+  .panel-bay {
+    padding: 10px 11px;
+  }
+
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .lbm-draw-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .efflux-gauge-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .seg-toggle {
+    width: 100%;
+  }
+
+  .seg-btn {
+    white-space: normal;
+    max-width: 100%;
+  }
+
+  .num-input,
+  input[type="number"].num-input {
+    width: 72px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mode-btn,
+  .btn-machined,
+  .seg-btn,
+  .draw-tool-btn,
+  .efflux-meter-fill {
+    transition: none;
+  }
 }

@@ -1,30 +1,399 @@
-/* Rich Doubt Coach Card & Slide-Over Drawer Host */
+/* Rich Doubt Coach Card, Shared Coach Components & Slide-Over Drawer Host */
+
+.coach-answer-body {
+  font-size: 12.5px;
+  line-height: 1.58;
+  color: var(--ink-primary);
+  word-break: break-word;
+}
+
 .coach-answer-body p {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .coach-answer-body p:last-child {
   margin-bottom: 0;
 }
 
+.coach-answer-body ul,
+.coach-answer-body ol {
+  margin: 6px 0 8px 18px;
+  padding: 0;
+}
+
+.coach-answer-body li {
+  margin-bottom: 4px;
+}
+
+.coach-answer-body code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-sub);
+  color: var(--ink-primary);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.coach-math-block,
+.coach-math-display {
+  display: block;
+  margin: 8px 0;
+  padding: 6px 8px;
+  background: var(--bg-sub);
+  color: var(--ink-primary);
+  border-radius: 5px;
+  overflow-x: auto;
+}
+
+.coach-math-fallback {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-primary);
+}
+
+.coach-math-inline {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.coach-provider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.coach-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--cobalt-ink);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.coach-citation-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.coach-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.coach-chip-btn {
+  background: var(--bg-sub);
+  border: 1px solid var(--seam-bright);
+  border-radius: 999px;
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: border-color 0.14s, background 0.14s, color 0.14s;
+}
+
+.coach-chip-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--cobalt-ink);
+}
+
+.coach-chip-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.coach-facts-details {
+  margin-top: 10px;
+  border: 1px solid var(--seam);
+  border-radius: 6px;
+  background: var(--bg-input);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.coach-facts-summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--ink-secondary);
+  user-select: none;
+  list-style-position: inside;
+}
+
+.coach-facts-summary:hover {
+  color: var(--accent);
+}
+
+.coach-facts-list {
+  margin: 8px 0 2px 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  color: var(--ink-primary);
+}
+
+.coach-context-box {
+  background: var(--bg-input);
+  border: 1px solid var(--seam);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.coach-context-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.coach-context-family {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.coach-assumption-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.coach-assumption-chip {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--seam-bright);
+  background: var(--bg-sub);
+  color: var(--ink-primary);
+}
+
+.coach-chip-broken {
+  background: var(--coral-soft);
+  border-color: var(--coral-border);
+  color: var(--coral-ink);
+}
+
+.coach-chip-ok {
+  background: var(--ok-soft);
+  border-color: var(--ok-border);
+  color: var(--ink-primary);
+}
+
+.coach-context-trap {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--coral-ink);
+  background: var(--coral-soft);
+  border: 1px solid var(--coral-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+/* Slide-Over Coach Drawer Host (#coachDrawerHost) */
 .coach-drawer-host {
   position: fixed;
   top: 56px;
   right: 16px;
   bottom: 16px;
-  width: min(400px, calc(100vw - 24px));
-  z-index: 50;
+  width: min(420px, calc(100vw - 24px));
+  max-width: 100vw;
+  z-index: 55;
   background: var(--bg-bay);
+  color: var(--ink-primary);
   border: 1px solid var(--seam-bright);
   border-radius: 8px;
   box-shadow: var(--shadow-md);
-  display: flex;
+  display: none;
   flex-direction: column;
   padding: 14px;
   gap: 10px;
   overflow-y: auto;
+  overflow-x: hidden;
+  font-size: 12.5px;
+  transform: translateX(106%);
+  opacity: 0;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.16s ease;
 }
 
 .coach-drawer-host[aria-hidden="true"] {
   display: none;
+  pointer-events: none;
+}
+
+.coach-drawer-host.open,
+.coach-drawer-host[aria-hidden="false"] {
+  display: flex;
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.coach-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--seam);
+  padding-bottom: 8px;
+}
+
+.coach-drawer-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+
+.coach-drawer-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.coach-close-btn {
+  background: var(--bg-sub);
+  border: 1px solid var(--seam-bright);
+  border-radius: 5px;
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 30px;
+  height: 28px;
+  padding: 0 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coach-close-btn:hover {
+  border-color: var(--coral);
+  background: var(--coral-soft);
+  color: var(--coral-ink);
+}
+
+.coach-drawer-host .btn-machined,
+.coach-drawer-host .btn-xs,
+.coach-drawer-host .tag-mono {
+  font-size: 12px;
+}
+
+.coach-drawer-host .btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink-inverse);
+}
+
+.coach-drawer-host .btn-primary:hover {
+  background: var(--accent);
+  color: var(--ink-inverse);
+  filter: brightness(1.06);
+}
+
+.coach-drawer-host .diag-cell {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.coach-drawer-host .diag-key {
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+
+.coach-drawer-host .diag-val {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.coach-drawer-reply {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coach-quiz-lock-card {
+  background: var(--bg-callout);
+  border: 1px solid var(--amber-border);
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-primary);
+}
+
+/* Station 01 LLM Config Micro-Drawer */
+.s1-llm-config {
+  border: 1px solid var(--seam);
+  border-radius: 6px;
+  background: var(--bg-input);
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.s1-llm-summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--ink-secondary);
+  user-select: none;
+}
+
+.s1-llm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .coach-drawer-host {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    bottom: 8px;
+    width: auto;
+    max-width: calc(100vw - 16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-drawer-host,
+  .coach-chip-btn,
+  .coach-close-btn {
+    transition: none;
+  }
 }
