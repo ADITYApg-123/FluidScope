@@ -1,0 +1,27 @@
+[project]
+name = "fluidscope-ai"
+version = "0.1.0"
+description = "Aerospace Telemetry Bench & AI Concept-Twist Fluid Mechanics Workbench grounded in Som, Biswas & Chakraborty."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "starlette>=0.40.0",
+    "uvicorn>=0.32.0",
+    "numpy>=2.0.0",
+    "scipy>=1.13.0",
+    "sympy>=1.13.0",
+    "numba>=0.60.0",
+    "pydantic>=2.9.0",
+    "google-genai>=1.0.0",
+    "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+

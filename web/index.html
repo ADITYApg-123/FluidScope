@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FLUIDSCOPE AI — Interactive Fluid Mechanics Concept-Twist Workbench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="/styles/telemetry.css" />
+</head>
+<body>
+  <div class="bench-shell">
+    <!-- Top Header Bar -->
+    <header class="top-bar">
+      <button class="brand-cluster" id="brandHomeBtn" title="Return to Overview">
+        <span class="brand-mark">FS</span>
+        <span class="brand-text-wrap">
+          <span class="brand-code">FluidScope AI</span>
+          <span class="brand-sub">Som, Biswas &amp; Chakraborty Workbench</span>
+        </span>
+      </button>
+
+      <nav class="bay-tabs" id="bayTabs" role="tablist" aria-label="Workspace Navigation">
+        <button class="bay-tab active" data-view="overview" id="tabOverview">Overview</button>
+        <button class="bay-tab" data-view="01" id="tabTranslator">AI Translator</button>
+        <button class="bay-tab" data-view="labs" id="tabLabs">Physics Labs</button>
+        <button class="bay-tab" data-view="05" id="tabQuiz">12-Twist Quiz</button>
+      </nav>
+
+      <div class="status-cluster">
+        <button class="status-chip theme-toggle-btn" id="themeToggleBtn" title="Switch Light / Dark Studio Theme">
+          <span id="themeIcon">&#9788;</span>
+          <span id="themeLabel">Light Mode</span>
+        </button>
+        <button class="status-chip" id="aiEngineBadge" title="Configure Offline / Gemini / OpenAI-Compatible AI">AI: Offline</button>
+        <span class="status-chip status-ok" id="kernelBadge">Kernel: Ready</span>
+      </div>
+    </header>
+
+    <!-- View 1: Dedicated Landing / Overview Page -->
+    <main class="overview-view" id="overviewView"></main>
+
+    <!-- Views 2–4: Interactive Workbench Shell -->
+    <main class="workbench-view hidden" id="workbenchView">
+      <!-- Unified Physics Labs Selector Strip -->
+      <div class="lab-selector-strip hidden" id="labSelectorStrip" role="navigation" aria-label="Physics Lab Modules">
+        <div class="lab-pill-group">
+          <span class="lab-group-label">KINEMATICS &amp; VORTEX</span>
+          <button class="lab-pill" data-bay="02" data-sub="kinematics">Equation Flow</button>
+          <button class="lab-pill" data-bay="02" data-sub="vortex">Vortex Trap</button>
+          <button class="lab-pill" data-bay="02" data-sub="vessel">Rotating Vessel</button>
+          <button class="lab-pill" data-bay="02" data-sub="potential">Magnus Cylinder</button>
+        </div>
+        <div class="lab-pill-group">
+          <span class="lab-group-label">VISCOUS &amp; BL</span>
+          <button class="lab-pill" data-bay="03" data-sub="separation">BL Separation</button>
+          <button class="lab-pill" data-bay="03" data-sub="couette">Couette-Poiseuille</button>
+          <button class="lab-pill" data-bay="03" data-sub="twolayer">Two-Layer (Ex 8.2)</button>
+          <button class="lab-pill" data-bay="03" data-sub="slip_hb">Slip &amp; Herschel-Bulkley</button>
+        </div>
+        <div class="lab-pill-group">
+          <span class="lab-group-label">CONSERVATION &amp; LBM</span>
+          <button class="lab-pill" data-bay="04" data-sub="lbm">2D LBM Tunnel</button>
+          <button class="lab-pill" data-bay="04" data-sub="jump">Hydraulic Jump</button>
+          <button class="lab-pill" data-bay="04" data-sub="expansion">Pipe Expansion</button>
+          <button class="lab-pill" data-bay="04" data-sub="tank">Accel / Free-Fall Tank</button>
+        </div>
+      </div>
+
+      <div class="cockpit-grid">
+        <!-- Left Interactive Control & Assumption Rail -->
+        <aside class="control-rail" id="controlRail">
+          <div class="rail-scroll">
+            <div id="bayControls"></div>
+
+            <!-- Interactive Assumption Switch Matrix -->
+            <section class="panel-bay">
+              <div class="bay-header assumption-accordion-header" id="assumptionAccordionBtn">
+                <span>Active Physics Assumptions</span>
+                <span class="tag-mono" id="bernoulliVerdictBadge">Auditing...</span>
+              </div>
+              <div style="font-size:11.5px;color:var(--ink-muted);line-height:1.4;">
+                Toggle switches to strike terms in the Navier–Stokes equation and perturb compatible live labs.
+              </div>
+              <div class="rocker-grid" id="assumptionRockers"></div>
+              <div class="warning-feed" id="assumptionWarnings"></div>
+            </section>
+          </div>
+        </aside>
+
+        <!-- Main Visualization Stage -->
+        <section class="viewport-stage">
+          <!-- SymPy Governing Equation Auditor Strip -->
+          <div class="equation-bar" id="equationBar">
+            <div class="eq-strip-label">Governing Equation Audit</div>
+            <div class="eq-terms" id="eqTermsRow"></div>
+            <div class="eq-cross-stream" id="eqCrossStream"></div>
+          </div>
+
+          <!-- Plain-English Concept Twist Banner -->
+          <div class="concept-banner" id="conceptBanner">
+            <div class="concept-banner-main" id="conceptBannerText">
+              <strong>Live Flow vs. Formula Comparison:</strong> Inspect the physical flow field on the left and compare Exact Governing Physics against naive shortcuts on the right.
+            </div>
+            <div class="concept-banner-trap" id="conceptBannerTrap">
+              <strong>Watch For:</strong> Shaded red bands highlight errors created when hidden textbook assumptions break.
+            </div>
+          </div>
+
+          <!-- Dual Side-by-Side Visualization Deck -->
+          <div class="canvas-deck" id="canvasDeck">
+            <div class="canvas-bay" id="primaryCanvasBay">
+              <div class="canvas-titlebar">
+                <span id="primaryTitle">Flow Field Visualization</span>
+                <div class="titlebar-right">
+                  <div class="legend-strip" id="primaryLegend"></div>
+                </div>
+              </div>
+              <div class="canvas-stage-wrap">
+                <canvas id="flowCanvas"></canvas>
+              </div>
+              <div class="probe-hud" id="flowProbeHud">Move cursor over the flow field to inspect live velocity and vorticity</div>
+            </div>
+
+            <div class="canvas-bay" id="secondaryCanvasBay">
+              <div class="canvas-titlebar">
+                <span id="secondaryTitle">True Physics vs. Naive Formula</span>
+                <div class="titlebar-right">
+                  <div id="secondaryPlotControls"></div>
+                  <div class="legend-strip" id="secondaryLegend"></div>
+                </div>
+              </div>
+              <div class="canvas-stage-wrap">
+                <canvas id="plotCanvas"></canvas>
+              </div>
+              <div class="probe-hud" id="plotProbeHud">Hover over the curve to read exact values</div>
+            </div>
+          </div>
+
+          <!-- Quantitative Readouts & Diagnostic Panel -->
+          <section class="telemetry-drawer" id="telemetryDrawer">
+            <div class="drawer-header">
+              <div class="drawer-title-group">
+                <span class="led led-ok"></span>
+                <span>Computed Physics Readouts &amp; Diagnostics</span>
+              </div>
+              <div class="drawer-metrics" id="drawerMetrics"></div>
+              <button class="btn-machined btn-xs" id="toggleDrawerBtn">Hide Details</button>
+            </div>
+            <div class="drawer-body" id="drawerBody"></div>
+          </section>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
