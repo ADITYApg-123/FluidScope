@@ -175,14 +175,14 @@ export function renderOverview(handlers) {
     <!-- Hero Band -->
     <section class="hero-band">
       <div class="hero-copy">
-        <div class="hero-eyebrow">NEURO-SYMBOLIC FLUID MECHANICS WORKBENCH</div>
+        <div class="hero-eyebrow">INTERACTIVE FLUID MECHANICS WORKBENCH</div>
         <h1 class="hero-title">See exactly where naive textbook formulas break.</h1>
         <p class="hero-subtitle">
           In fluid mechanics exams and engineering design, shortcuts like
           <em>&ldquo;Bernoulli holds everywhere&rdquo;</em> or
           <em>&ldquo;streamlines equal pathlines&rdquo;</em>
-          fail silently whenever hidden assumptions break. FluidScope AI pairs exact
-          <strong>SymPy, SciPy &amp; Numba 2D LBM solvers</strong> with live side-by-side comparisons
+          fail silently whenever hidden assumptions break. FluidScope pairs
+          <strong>real-time interactive physics simulations</strong> with live side-by-side comparisons
           between true physics and common traps.
         </p>
 
@@ -194,16 +194,16 @@ export function renderOverview(handlers) {
 
         <div class="hero-pillars">
           <div class="pillar-item">
-            <span class="pillar-k">Symbolic Auditor</span>
-            <span class="pillar-v">SymPy tracks which Navier–Stokes &amp; Bernoulli terms vanish or stay active.</span>
+            <span class="pillar-k">Assumption Auditor</span>
+            <span class="pillar-v">Tracks which physical assumptions (steady, inviscid, irrotational) hold or break in real time.</span>
           </div>
           <div class="pillar-item">
-            <span class="pillar-k">Exact + LBM Kernels</span>
-            <span class="pillar-v">SciPy ODE boundary layers, Euler momentum balances &amp; live D2Q9 wind tunnel.</span>
+            <span class="pillar-k">Exact Physics Solvers</span>
+            <span class="pillar-v">Directly compares exact governing Navier–Stokes equations against simplified textbook approximations.</span>
           </div>
           <div class="pillar-item">
-            <span class="pillar-k">Honest AI Scope</span>
-            <span class="pillar-v">Extracts 2D equations from text cleanly; refuses 3D regimes instead of guessing.</span>
+            <span class="pillar-k">Live Visual Feedback</span>
+            <span class="pillar-v">Real-time side-by-side flow fields, streamlines, and pressure plots update instantly as you move sliders.</span>
           </div>
         </div>
       </div>
