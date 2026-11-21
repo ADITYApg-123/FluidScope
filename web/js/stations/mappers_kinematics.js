@@ -243,7 +243,7 @@ export function mapKinematicsToScene(family, d, options = {}) {
       ],
       banner: {
         mainHtml: diverges
-          ? "<strong>Unsteady Kinematics (Ex. 3.10):</strong> Because ∂V/∂t ≠ 0, the instantaneous streamline, particle pathline, and dye streakline diverge into distinct curves."
+          ? "<strong>Unsteady Kinematics:</strong> Because ∂V/∂t ≠ 0, the instantaneous streamline, particle pathline, and dye streakline diverge into distinct curves."
           : "<strong>Steady Flow Equivalence:</strong> Because ∂V/∂t = 0, streamline, pathline, and streakline collapse onto the same geometric path.",
         trapHtml: diverges
           ? "Exam Trap: Even with constant v = v₀, time-varying u(x, t) splits all three curves!"
@@ -400,7 +400,7 @@ export function mapKinematicsToScene(family, d, options = {}) {
       drawerCards: [
         { k: "Exact Radial Euler Δp", v: `${fmt(pr.dp_true / 1000, 3)} kPa`, tone: "accent" },
         { k: "Naive Bernoulli Δp", v: `${fmt(pr.dp_naive / 1000, 3)} kPa`, tone: Math.abs(pr.dp_discrepancy || 0) > 1 ? "coral" : "" },
-        { k: "Cross-Stream Head ΔH(r₁→r₂)", v: `${fmt(pr.head_gain_r1_to_r2, 3)} m (Eq. 4.44 / 4.57)`, tone: "amber" },
+        { k: "Cross-Stream Head ΔH(r₁→r₂)", v: `${fmt(pr.head_gain_r1_to_r2, 3)} m`, tone: "amber" },
         {
           k: "Vorticity Verdict",
           v: validBern
@@ -415,7 +415,7 @@ export function mapKinematicsToScene(family, d, options = {}) {
   const hasSpillOrUncover = d.spilled_fraction > 0.001 || d.uncovered_area > 0;
   return {
     primaryTitle: `Open Rotating Cylinder Cross-Section @ ${fmt(d.rpm, 0)} RPM`,
-    secondaryTitle: "Free Surface Paraboloid z(r) & Base Uncovering (Ex. 4.8)",
+    secondaryTitle: "Free Surface Paraboloid z(r) & Base Uncovering",
     primaryLegend: [
       { label: "Liquid Paraboloid", color: OKABE_ITO.blue },
       ...(d.uncovered_radius > 0 ? [{ label: "Uncovered Dry R₁", color: OKABE_ITO.red }] : []),
@@ -425,7 +425,7 @@ export function mapKinematicsToScene(family, d, options = {}) {
       { label: "Cylinder Rim H", color: "#475569", dashed: true },
     ],
     banner: {
-      mainHtml: "<strong>Rotating Open Vessel (Ex. 4.8):</strong> Solid-body swirl forces a parabolic free surface z(r) = z₀ + ω²r²/(2g) inside the open tank.",
+      mainHtml: "<strong>Rotating Open Vessel:</strong> Solid-body swirl forces a parabolic free surface z(r) = z₀ + ω²r²/(2g) inside the open tank.",
       trapHtml: hasSpillOrUncover
         ? "Overflow Trap: Above rim-touching speed, excess liquid spills overboard first — you cannot conserve full initial volume!"
         : "Below the rim-touching speed, full liquid volume remains trapped inside the vessel.",

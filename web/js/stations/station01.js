@@ -12,7 +12,7 @@ import { displaySolvedFamily } from "./scene_mapper.js";
 
 const SAMPLE_PROMPTS = [
   {
-    label: "Ex 3.10 Equation",
+    label: "Unsteady Flow Lines",
     text: "Compare streamline, pathline and streakline for unsteady velocity u = x/(t + t0), v = v0 at t0 = 1, t = 2",
   },
   {
@@ -159,9 +159,9 @@ function sanitizeParsedQuery(parsed, state) {
       `Physics diagnosis for ${family.replaceAll("_", " ")}.`,
     broken_shortcut:
       String(parsed.broken_shortcut || "").trim() ||
-      "Verify hidden textbook assumptions before applying simplified formulas.",
+      "Verify hidden physics assumptions before applying simplified formulas.",
     textbook_ref:
-      String(parsed.textbook_ref || "").trim() || "Som, Biswas & Chakraborty (3rd Ed.)",
+      String(parsed.textbook_ref || "").trim() || "Fluid Mechanics Core Principles",
     unsupported_reason: parsed.unsupported_reason ? String(parsed.unsupported_reason) : null,
     raw_query: String(parsed.raw_query || "").trim() || state.s1?.text || "",
   };
@@ -531,7 +531,7 @@ export function renderStation01(ctx) {
           { k: "Shortcut Trap", v: parsed.broken_shortcut, tone: "coral" },
         ];
         if (parsed.textbook_ref) {
-          extraCards.push({ k: "Textbook Citation", v: parsed.textbook_ref });
+          extraCards.push({ k: "Topic Reference", v: parsed.textbook_ref });
         }
         for (const c of extraCards) {
           if (!c.v) continue;

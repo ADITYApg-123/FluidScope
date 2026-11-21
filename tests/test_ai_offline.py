@@ -80,8 +80,8 @@ def test_doubt_coach_grounds_exact_solver_numbers():
     v_sol = solve_vortex_flow(mode="forced", omega=10.0, r1=0.1, r2=0.4)
     reply = answer_doubt("Why didn't Bernoulli work here?", pq, v_sol, LLMConfig(provider="offline"))
     assert "kPa" in "\n".join(reply.grounded_facts)
-    assert "Ch. 4.5" in reply.textbook_citation
-    assert "4.43" in reply.answer
+    assert "Vortex" in reply.textbook_citation
+    assert "Crocco" in reply.answer
 
     hj_pq = parse_problem("6.1 m wide apron 11.32 m^3/s at 6.1 m/s hydraulic jump")
     hj_sol = solve_hydraulic_jump(width=6.1, v1=6.1, discharge=11.32, h1=None)

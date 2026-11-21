@@ -1,13 +1,12 @@
-"""Boundary-Layer Separation & Viscous Concept-Twist Solvers
-(Som, Biswas & Chakraborty Ch. 1.6, Ch. 8.3, Ch. 9.3, Ch. 9.6, Ch. 9.8).
+"""Boundary-Layer Separation & Viscous Concept-Twist Solvers.
 
 Implements:
 - Falkner-Skan exact similarity BVP solver (Blasius β=0 through separation β_c ≈ -0.19884).
 - Karman-Pohlhausen pressure-gradient boundary layer (continues past Λ = -12 into backflow).
-- Circular cylinder potential Cp(θ) vs. separated wake Cp(θ) (Fig. 9.5 D'Alembert trap).
-- Generalized Couette-Poiseuille (Eq. 8.41-8.42, Example 8.4).
-- Two-Layer Immiscible Plane Poiseuille (Example 8.2, shear-continuity vs. slope-continuity trap).
-- Herschel-Bulkley non-Newtonian + Navier wall-slip slit flow (Ch. 1.6 + microchannel slip).
+- Circular cylinder potential Cp(θ) vs. separated wake Cp(θ) (D'Alembert trap).
+- Generalized Couette-Poiseuille with adverse pressure gradient.
+- Two-Layer Immiscible Plane Poiseuille (shear-continuity vs. slope-continuity trap).
+- Herschel-Bulkley non-Newtonian + Navier wall-slip slit flow.
 """
 
 from __future__ import annotations

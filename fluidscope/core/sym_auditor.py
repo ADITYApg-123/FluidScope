@@ -2,7 +2,7 @@
 
 Uses SymPy symbolically to derive simplified governing equations and cross-highlight
 which terms drop out or activate under physical assumption toggles matching
-Som, Biswas & Chakraborty (3rd Ed.).
+standard fluid mechanics governing principles.
 """
 
 from __future__ import annotations
@@ -73,11 +73,11 @@ def _build_symbolic_lhs_rhs(state: AssumptionState) -> dict[str, str]:
 
     mom_eq = sp.Eq(lhs_expr, sum(rhs_terms))
 
-    # Cross-stream normal Bernoulli gradient Eq. (4.43-4.44)
+    # Cross-stream normal Bernoulli gradient & Crocco's theorem
     if state.irrotational and state.inviscid and state.steady and not state.irreversible_jump:
         cross_stream_tex = r"\frac{\partial H}{\partial n} = \frac{V}{g}\,\Omega_z = 0 \implies H = \text{const globally}"
     elif state.inviscid and state.steady and not state.irreversible_jump:
-        cross_stream_tex = r"\frac{\partial H}{\partial n} = \frac{V}{g}\,\Omega_z \neq 0 \quad (\text{Ch. 4.5, Eq. 4.43})"
+        cross_stream_tex = r"\frac{\partial H}{\partial n} = \frac{V}{g}\,\Omega_z \neq 0 \quad (\text{Crocco's Theorem})"
     else:
         cross_stream_tex = r"\frac{\partial H}{\partial n} \text{ non-conservative (viscous / unsteady / jump dissipation)}"
 
@@ -89,35 +89,35 @@ def _build_symbolic_lhs_rhs(state: AssumptionState) -> dict[str, str]:
 
 
 def _build_equation_contexts(sym_eqs: dict[str, str]) -> dict[str, dict[str, str]]:
-    """Build normalized textbook equation contexts for header display across labs."""
+    """Build normalized equation contexts for header display across labs."""
     return {
         "ns_x": {
             "id": "ns_x",
             "title": "2D Navier–Stokes / Euler (Streamwise x)",
             "tex": sym_eqs["momentum_x_tex"],
-            "subtitle": "Term-by-term local inertia, convective inertia, pressure, viscous, and frame balance (Ch. 4 & Ch. 8).",
+            "subtitle": "Term-by-term local inertia, convective inertia, pressure, viscous, and frame balance.",
         },
         "radial_euler": {
             "id": "radial_euler",
-            "title": "Radial Euler & Crocco Equation (Ch. 4.5, Eq. 4.43)",
+            "title": "Radial Euler & Crocco Equation",
             "tex": r"\frac{\partial p}{\partial r} = \rho \frac{v_\theta^2}{r}, \qquad \frac{\partial H}{\partial n} = \frac{V}{g}\,\Omega_z",
             "subtitle": "Outward pressure rise balances centrifugal acceleration, while total head H varies across streamlines iff Ωz ≠ 0.",
         },
         "specific_force": {
             "id": "specific_force",
-            "title": "Specific Energy vs. Specific Force (Ch. 11.5 & 12.4)",
+            "title": "Specific Energy vs. Specific Force",
             "tex": r"E_s = h + \frac{q^2}{2gh^2}, \qquad F_s = \frac{q^2}{gh} + \frac{h^2}{2} = \text{const}",
             "subtitle": "Across hydraulic jumps and sudden expansions, integral momentum (Fs) holds while mechanical energy dissipates.",
         },
         "frame_g_eff": {
             "id": "frame_g_eff",
-            "title": "Non-Inertial Frame Hydrostatics (Ch. 2.9, Eq. 2.86)",
+            "title": "Non-Inertial Frame Hydrostatics",
             "tex": r"\nabla p = \rho\left(\mathbf{g} - \mathbf{a}_{\text{frame}}\right), \qquad \tan\theta = \frac{a_x}{g + a_z}",
             "subtitle": "Effective gravity g_eff = g + az drops to zero in free fall (az = -g), flattening the meniscus and halting efflux.",
         },
         "boundary_layer": {
             "id": "boundary_layer",
-            "title": "Prandtl Boundary Layer & Wall Curvature (Ch. 9.6, Eq. 9.41–9.42)",
+            "title": "Prandtl Boundary Layer & Wall Curvature",
             "tex": r"u\frac{\partial u}{\partial x} + v\frac{\partial u}{\partial y} = -\frac{1}{\rho}\frac{dp}{dx} + \nu\frac{\partial^2 u}{\partial y^2}, \qquad \left.\mu\frac{\partial^2 u}{\partial y^2}\right|_w = \frac{dp}{dx}",
             "subtitle": "Adverse pressure gradient dp/dx > 0 enforces positive wall curvature and an interior inflection point ahead of separation.",
         },

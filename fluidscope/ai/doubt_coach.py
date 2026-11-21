@@ -1,7 +1,7 @@
 """Solver-grounded Conceptual Doubt Coach.
 
 Answers student doubts strictly anchored to verified numerical solver residuals
-and Som, Biswas & Chakraborty textbook citations. Never guesses numbers blindly.
+and fluid mechanics governing principles. Never guesses numbers blindly.
 """
 
 from __future__ import annotations
@@ -92,7 +92,7 @@ def _summarize_solver_facts(parsed: ParsedPhysicsQuery | None, solver_data: dict
             f"vs Naive Bernoulli $= {_fmt_num((pr.get('dp_naive') or 0.0) / 1000.0, 3)}\\text{{ kPa}}$"
         )
         facts.append(
-            f"Cross-stream total head change $\\Delta H = {_fmt_num(pr.get('head_gain_r1_to_r2', 0.0), 3)}\\text{{ m}}$ (Eq. 4.44 / 4.57)"
+            f"Cross-stream total head change $\\Delta H = {_fmt_num(pr.get('head_gain_r1_to_r2', 0.0), 3)}\\text{{ m}}$ (Crocco's theorem)"
         )
     elif fam == "rotating_vessel":
         facts.append(
@@ -188,11 +188,11 @@ def answer_doubt(
     """Provide grounded conceptual answer tied strictly to computed physics facts."""
     cfg = cfg or LLMConfig()
     facts = _summarize_solver_facts(parsed, solver_data)
-    cite = parsed.textbook_ref if parsed else "Som, Biswas & Chakraborty (3rd Ed.)"
+    cite = parsed.textbook_ref if parsed else "Fluid Mechanics Core Principles"
 
     if cfg.provider != "offline":
         sys_p = (
-            "You are a concise IIT Kharagpur Fluid Mechanics TA coaching a student from Som, Biswas & Chakraborty. "
+            "You are a concise fluid mechanics teaching assistant. "
             "Respond as JSON: {\"answer\": \"clear 2-4 sentence technical explanation\"}. "
             "STRICT RULE: Anchor your answer ONLY in the verified solver facts below; never invent different numbers or signs."
         )
@@ -218,7 +218,7 @@ def answer_doubt(
         if "bernoulli" in q_low:
             trap += (
                 r"Bernoulli requires steady, incompressible, inviscid flow **and** irrotationality across streamlines "
-                r"(Eq. 4.43: $\partial H / \partial n = V \Omega_z / g$) with zero eddy dissipation."
+                r"(Crocco's theorem: $\partial H / \partial n = V \Omega_z / g$) with zero eddy dissipation."
             )
         elif "streakline" in q_low or "pathline" in q_low or "streamline" in q_low:
             trap += (
@@ -227,8 +227,8 @@ def answer_doubt(
             )
         elif "separat" in q_low or "inflection" in q_low:
             trap += (
-                r"At the wall, Eq. (9.42) gives $\mu(\partial^2 u/\partial y^2)_w = dp/dx > 0$ under an adverse pressure gradient, "
-                r"forcing an interior inflection point before wall shear $(\partial u/\partial y)_w = 0$ (separation, Eq. 9.41)."
+                r"At the wall, Navier–Stokes gives $\mu(\partial^2 u/\partial y^2)_w = dp/dx > 0$ under an adverse pressure gradient, "
+                r"forcing an interior inflection point before wall shear $(\partial u/\partial y)_w = 0$ (boundary-layer separation)."
             )
         elif "slip" in q_low or "plug" in q_low:
             trap += (

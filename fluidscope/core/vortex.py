@@ -1,10 +1,10 @@
-"""Vortex Flows (Som, Biswas & Chakraborty Ch. 4.5) & Potential Superposition (Ch. 7).
+"""Vortex Flows & Potential Flow Superposition.
 
 Implements:
 - Free (irrotational), Forced (solid-body rotational), Rankine combined, and Spiral free vortices.
 - Radial pressure p(r), Bernoulli head H(r), vorticity Ωz(r), normal acceleration a_n(r).
 - Naive constant-head Bernoulli vs. exact radial Euler comparison proving sign/head traps.
-- Open cylindrical rotating vessel spill/base-uncovering (Example 4.8).
+- Open cylindrical rotating vessel spill/base-uncovering paraboloid hydrostatics.
 - 2D Potential Flow superposition: Uniform stream + Sources/Sinks + Doublet + Point Vortices (Magnus lift).
 """
 
@@ -191,7 +191,7 @@ def solve_rotating_vessel(
     g: float = 9.81,
     n_pts: int = 100,
 ) -> dict[str, Any]:
-    """Rotating vertical open cylinder (Som-Biswas-Chakraborty Ex 4.8, p. 208-209)."""
+    """Rotating vertical open cylinder paraboloid hydrostatics."""
     if radius <= 0 or vessel_height <= 0:
         raise ValueError("Radius and vessel_height must be positive.")
     h_init = max(0.0, min(initial_depth, vessel_height))
@@ -273,7 +273,7 @@ def solve_potential_superposition(
     bounds: tuple[float, float, float, float] = (-3.5, 3.5, -2.5, 2.5),
     grid_n: int = 55,
 ) -> dict[str, Any]:
-    """2D Potential Flow Superposition (Som, Biswas & Chakraborty Ch. 7)."""
+    """2D Potential Flow Superposition."""
     sources = sources or []
     doublets = doublets or []
     vortices = vortices or []

@@ -94,8 +94,8 @@ export class FlowCanvasEngine {
         frame: "#475569",
         tickInk: "#94A3B8",
         labelInk: "#E2E8F0",
-        vectorInk: "rgba(148, 163, 184, 0.84)",
-        tracerRgb: "147, 197, 253",
+        vectorInk: "rgba(148, 163, 184, 0.16)",
+        tracerRgb: "56, 149, 234",
         solidFill: "#1E293B",
         solidStroke: "#94A3B8",
         fluidFill: "rgba(56, 189, 248, 0.16)",
@@ -124,8 +124,8 @@ export class FlowCanvasEngine {
       frame: "#9CA3AF",
       tickInk: "#4B5563",
       labelInk: "#111827",
-      vectorInk: "rgba(100, 116, 139, 0.84)",
-      tracerRgb: "0, 114, 178",
+      vectorInk: "rgba(100, 116, 139, 0.16)",
+      tracerRgb: "0, 86, 163",
       solidFill: "#E2E8F0",
       solidStroke: "#334155",
       fluidFill: "rgba(0, 114, 178, 0.12)",
@@ -1209,12 +1209,12 @@ export class FlowCanvasEngine {
       ctx.beginPath(); ctx.moveTo(ox, zy); ctx.lineTo(ox + boxW, zy); ctx.stroke();
     }
 
-    // 3. Screen-space tangent velocity arrows (high contrast >= 0.72 alpha)
+    // 3. Screen-space tangent velocity arrows (background guide grid — light & spaced)
     if (this.scene.field?.xs && !this.scene.hideVectors) {
       const f = this.scene.field;
-      const stepX = Math.max(1, Math.floor(f.xs.length / 13));
-      const stepY = Math.max(1, Math.floor(f.ys.length / 13));
-      const baseLen = Math.min(boxW, boxH) * 0.048;
+      const stepX = Math.max(1, Math.floor(f.xs.length / 10));
+      const stepY = Math.max(1, Math.floor(f.ys.length / 10));
+      const baseLen = Math.min(boxW, boxH) * 0.036;
       ctx.strokeStyle = pal.vectorInk;
       for (let j = 1; j < f.ys.length - 1; j += stepY) {
         for (let i = 1; i < f.xs.length - 1; i += stepX) {
@@ -1238,9 +1238,9 @@ export class FlowCanvasEngine {
             py,
             px + (sx / sMag) * len,
             py + (sy / sMag) * len,
-            Math.max(4.0, Math.min(6.0, len * 0.36)),
+            Math.max(2.5, Math.min(4.0, len * 0.28)),
             pal.vectorInk,
-            1.25
+            0.9
           );
         }
       }
@@ -1248,7 +1248,7 @@ export class FlowCanvasEngine {
 
     // 4. Advected Tracer Particles (freeze cleanly when paused / reduced motion)
     const domainDiag = Math.hypot(xmax - xmin, ymax - ymin);
-    const dtStep = 0.008 * domainDiag;
+    const dtStep = 0.013 * domainDiag;
     if (this.scene.field?.xs) {
       for (const p of this.particles) {
         const s = this._sampleField(p.x, p.y);
@@ -1267,8 +1267,8 @@ export class FlowCanvasEngine {
         if (this._paused) {
           const [ax, ay] = this._worldToPixel(p.x, p.y, tr);
           const [bx, by] = this._worldToPixel(p.x + dirX * cap * dtStep * 0.75, p.y + dirY * cap * dtStep * 0.75, tr);
-          ctx.strokeStyle = `rgba(${pal.tracerRgb}, 0.52)`;
-          ctx.lineWidth = 1.4;
+          ctx.strokeStyle = `rgba(${pal.tracerRgb}, 0.80)`;
+          ctx.lineWidth = 1.8;
           ctx.beginPath();
           ctx.moveTo(ax, ay);
           ctx.lineTo(bx, by);
@@ -1288,9 +1288,9 @@ export class FlowCanvasEngine {
         }
         const [ax, ay] = this._worldToPixel(prevX, prevY, tr);
         const [bx, by] = this._worldToPixel(p.x, p.y, tr);
-        const alpha = Math.sin((p.life / p.maxLife) * Math.PI) * 0.68;
+        const alpha = Math.sin((p.life / p.maxLife) * Math.PI) * 0.92;
         ctx.strokeStyle = `rgba(${pal.tracerRgb}, ${alpha.toFixed(2)})`;
-        ctx.lineWidth = 1.4;
+        ctx.lineWidth = 1.8;
         ctx.beginPath();
         ctx.moveTo(ax, ay);
         ctx.lineTo(bx, by);

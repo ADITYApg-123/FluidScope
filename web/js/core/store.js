@@ -4,18 +4,18 @@
  */
 
 export const LAB_CATALOG = [
-  { id: "2A", bay: "02", sub: "kinematics", category: "kinematics", label: "Lab 2A · Equation Flow", shortLabel: "Equation Flow", chapter: "Ch. 3.3 · Ex. 3.10" },
-  { id: "2B", bay: "02", sub: "vortex", category: "kinematics", label: "Lab 2B · Vortex Trap", shortLabel: "Vortex Trap", chapter: "Ch. 4.5 · Eq. 4.43" },
-  { id: "2C", bay: "02", sub: "vessel", category: "kinematics", label: "Lab 2C · Rotating Vessel", shortLabel: "Rotating Vessel", chapter: "Ch. 4.5 · Ex. 4.8" },
-  { id: "2D", bay: "02", sub: "potential", category: "kinematics", label: "Lab 2D · Magnus Cylinder", shortLabel: "Magnus Cylinder", chapter: "Ch. 7 · Kutta–Joukowski" },
-  { id: "3A", bay: "03", sub: "separation", category: "viscous", label: "Lab 3A · BL Separation", shortLabel: "BL Separation", chapter: "Ch. 9.6 · Eq. 9.41" },
-  { id: "3B", bay: "03", sub: "couette", category: "viscous", label: "Lab 3B · Couette-Poiseuille", shortLabel: "Couette-Poiseuille", chapter: "Ch. 8.3 · Ex. 8.4" },
-  { id: "3C", bay: "03", sub: "twolayer", category: "viscous", label: "Lab 3C · Two-Layer (Ex 8.2)", shortLabel: "Two-Layer (Ex 8.2)", chapter: "Ch. 8.3 · Ex. 8.2" },
-  { id: "3D", bay: "03", sub: "slip_hb", category: "viscous", label: "Lab 3D · Slip & Herschel-Bulkley", shortLabel: "Slip & Herschel-Bulkley", chapter: "Ch. 1.6 & Ch. 8" },
-  { id: "4A", bay: "04", sub: "lbm", category: "conservation", label: "Lab 4A · 2D LBM Tunnel", shortLabel: "2D LBM Tunnel", chapter: "Ch. 10 · Numba D2Q9" },
-  { id: "4B", bay: "04", sub: "jump", category: "conservation", label: "Lab 4B · Hydraulic Jump", shortLabel: "Hydraulic Jump", chapter: "Ch. 12.4 · Ex. 12.11" },
-  { id: "4C", bay: "04", sub: "expansion", category: "conservation", label: "Lab 4C · Pipe Expansion", shortLabel: "Pipe Expansion", chapter: "Ch. 11.5 · Eq. 11.18" },
-  { id: "4D", bay: "04", sub: "tank", category: "conservation", label: "Lab 4D · Accel / Free-Fall Tank", shortLabel: "Accel / Free-Fall Tank", chapter: "Ch. 2.9 · Eq. 2.86" },
+  { id: "2A", bay: "02", sub: "kinematics", category: "kinematics", label: "Lab 2A · Equation Flow", shortLabel: "Equation Flow", chapter: "Fluid Kinematics" },
+  { id: "2B", bay: "02", sub: "vortex", category: "kinematics", label: "Lab 2B · Vortex Trap", shortLabel: "Vortex Trap", chapter: "Vortex Dynamics" },
+  { id: "2C", bay: "02", sub: "vessel", category: "kinematics", label: "Lab 2C · Rotating Vessel", shortLabel: "Rotating Vessel", chapter: "Rotating Fluid" },
+  { id: "2D", bay: "02", sub: "potential", category: "kinematics", label: "Lab 2D · Magnus Cylinder", shortLabel: "Magnus Cylinder", chapter: "Potential Flow" },
+  { id: "3A", bay: "03", sub: "separation", category: "viscous", label: "Lab 3A · BL Separation", shortLabel: "BL Separation", chapter: "Boundary Layer" },
+  { id: "3B", bay: "03", sub: "couette", category: "viscous", label: "Lab 3B · Couette-Poiseuille", shortLabel: "Couette-Poiseuille", chapter: "Channel Flow" },
+  { id: "3C", bay: "03", sub: "twolayer", category: "viscous", label: "Lab 3C · Two-Layer Flow", shortLabel: "Two-Layer Flow", chapter: "Two-Layer Viscous" },
+  { id: "3D", bay: "03", sub: "slip_hb", category: "viscous", label: "Lab 3D · Slip & Herschel-Bulkley", shortLabel: "Slip & Herschel-Bulkley", chapter: "Non-Newtonian Slip" },
+  { id: "4A", bay: "04", sub: "lbm", category: "conservation", label: "Lab 4A · 2D LBM Tunnel", shortLabel: "2D LBM Tunnel", chapter: "Computational CFD" },
+  { id: "4B", bay: "04", sub: "jump", category: "conservation", label: "Lab 4B · Hydraulic Jump", shortLabel: "Hydraulic Jump", chapter: "Hydraulic Jump" },
+  { id: "4C", bay: "04", sub: "expansion", category: "conservation", label: "Lab 4C · Pipe Expansion", shortLabel: "Pipe Expansion", chapter: "Pipe Expansion" },
+  { id: "4D", bay: "04", sub: "tank", category: "conservation", label: "Lab 4D · Accel / Free-Fall Tank", shortLabel: "Accel / Free-Fall Tank", chapter: "Accelerating Tank" },
 ];
 
 export const ROCKER_DEFS = [

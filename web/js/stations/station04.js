@@ -1,6 +1,6 @@
 /**
- * Station 04: Conservation Traps (Ch. 2.9, 11.5, 12.4) & Live Numba 2D D2Q9 LBM Tunnel.
- * Wave 1 — Agent D: single top-strip lab switching (no duplicate 2x2 switcher),
+ * Station 04: Conservation Traps & Live Numba 2D D2Q9 LBM Tunnel.
+ * Single top-strip lab switching,
  * paired tabular-nums inputs + unit tags + fmtNum, 4A interactive obstacle drawing
  * (Circle / Rect / Splitter / Clear -> preset:"custom"), step scrubber (200/450/700),
  * |V| vs Ωz colormap toggle, 4B Fs(h), 4C pipe EGL/HGL, 4D Free-Fall sequence + efflux gauge,
@@ -16,28 +16,28 @@ const CONSERVATION_META = {
       "Viscous D2Q9 Lattice–Boltzmann flow sheds alternating Kármán vortices unless stabilized by geometry such as a wake splitter.",
     broken_shortcut:
       "Assuming steady symmetric potential streamlines behind a bluff cylinder at Re ~ 100.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 10 (Unsteady Viscous Wake & LBM)",
+    textbook_ref: "2D Lattice–Boltzmann Wind Tunnel & Wake",
   },
   hydraulic_jump: {
     concept_twist:
       "Hydraulic jumps conserve integral specific force Fs rather than specific energy Es due to turbulent roller dissipation.",
     broken_shortcut:
       "Setting Es1 = Es2 across a hydraulic jump and ignoring irreversible eddy head loss hj.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 12.4 (Example 12.11, Eq. 12.48)",
+    textbook_ref: "Open-Channel Hydraulic Jump & Specific Force",
   },
   sudden_expansion: {
     concept_twist:
       "Annular corner eddies hold shoulder pressure p' ≈ p1 across an abrupt expansion, reducing pressure recovery via Borda–Carnot loss.",
     broken_shortcut:
       "Using ideal lossless Bernoulli Δp = ½ρ(V1² - V2²) across a sudden pipe expansion.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 11.5 (Eq. 11.18–11.23)",
+    textbook_ref: "Borda–Carnot Sudden Pipe Expansion",
   },
   accelerating_tank: {
     concept_twist:
       "Isobars tilt perpendicular to effective body force g_eff = g - a_frame; in free fall (az = -g), g_eff = 0 halts bottom orifice flow.",
     broken_shortcut:
       "Applying static Torricelli efflux v = √(2gh) inside an accelerating or free-falling tank.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 2.9 (Eq. 2.86–2.88, p. 97–99)",
+    textbook_ref: "Accelerating & Free-Falling Tank Hydrostatics",
   },
 };
 
@@ -422,7 +422,7 @@ export function renderStation04(ctx) {
     <section class="panel-bay">
       <div class="bay-header">
         <span>${titles[m] || "Conservation Traps & LBM"}</span>
-        <span class="tag-mono">Ch. 2 / 10 / 11 / 12</span>
+        <span class="tag-mono">Conservation &amp; CFD</span>
       </div>
       <div id="s4Sub"></div>
     </section>
@@ -1016,7 +1016,7 @@ export function renderStation04(ctx) {
     const ratioVal = roundDec(p.expD2 / Math.max(p.expD1, 1e-6), 2);
     sub.innerHTML = `
       <div class="preset-row" style="margin-bottom:8px;">
-        <button type="button" class="btn-machined" id="preExpDefault">Ex. 11.5 (D₂/D₁=2.0, V₁=4.0)</button>
+        <button type="button" class="btn-machined" id="preExpDefault">Standard (D₂/D₁=2.0, V₁=4.0)</button>
         <button type="button" class="btn-machined" id="preExpWide">Wide Step (D₂/D₁=3.0)</button>
       </div>
       <div class="grid-2">

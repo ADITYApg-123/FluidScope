@@ -1,5 +1,4 @@
-"""Integral Conservation, Energy Loss & Non-Inertial Reference-Frame Solvers
-(Som, Biswas & Chakraborty Ch. 2.9, Ch. 11.5, Ch. 12.4).
+"""Integral Conservation, Energy Loss & Non-Inertial Reference-Frame Solvers.
 """
 
 from __future__ import annotations

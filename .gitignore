@@ -1,8 +1,29 @@
+# Byte-compiled / optimized / Numba cache
 __pycache__/
 *.py[cod]
+*$py.class
 *.nbc
 *.nbi
-.pytest_cache/
+
+# Environment & API Keys (Critical)
+.env
+.env.*
+.env.local
+*.env
+
+# Virtual environments
 .venv/
 venv/
+ENV/
+env/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs & temp files
+*.log
+.DS_Store
+Thumbs.db
 node_modules/

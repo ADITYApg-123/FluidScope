@@ -1,7 +1,6 @@
 /**
- * Station 03: Viscous Twists & Boundary-Layer Separation (Ch. 1.6, 8.3, 9.3, 9.6, 9.8).
- * Wave 1 — Agent D: single top-strip lab switching (no duplicate 2x2 switcher),
- * paired tabular-nums inputs + unit tags + fmtNum, secondary metric toggles (incl. Fig. 9.5 Cp(θ)
+ * Station 03: Viscous Twists & Boundary-Layer Separation.
+ * Paired tabular-nums inputs + unit tags + fmtNum, secondary metric toggles (incl. cylinder Cp(θ)
  * & analytical Couette-Poiseuille τ(y)), concise drawer + collapsible Full Diagnostics,
  * boundary_layer / ns_x SymPy audits, and ParsedPhysicsQuery coach context emission.
  */
@@ -15,35 +14,35 @@ const VISCOUS_META = {
       "Adverse Hartree β < 0 forces positive wall curvature and an interior inflection point ahead of separation at β ≈ -0.1988.",
     broken_shortcut:
       "Assuming boundary-layer velocity profiles stay monotonic without an inflection point under dp/dx > 0.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 9.6 (Falkner–Skan & Eq. 9.42)",
+    textbook_ref: "Falkner–Skan Boundary Layer & Inflection",
   },
   bl_separation: {
     concept_twist:
       "Adverse pressure gradient (dp/dx > 0) forces positive wall curvature and boundary-layer reversal past Λ = -12.",
     broken_shortcut:
       "Relying on inviscid potential flow (D'Alembert's paradox) which misses wake separation and pressure drag.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 9.6 (Eq. 9.41–9.42, Fig. 9.5)",
+    textbook_ref: "Boundary-Layer Separation & Pressure Gradient",
   },
   couette_poiseuille: {
     concept_twist:
       "Moving-wall Couette shear competes with opposing pressure gradient, reversing lower-wall shear for P < -1 and reaching Q = 0 at P = -3.",
     broken_shortcut:
       "Assuming a linear Couette velocity profile when a nonzero axial pressure gradient P is present.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 8.3 (Example 8.4, Eq. 8.42)",
+    textbook_ref: "Generalized Couette–Poiseuille Backflow",
   },
   two_layer_poiseuille: {
     concept_twist:
       "At an immiscible liquid interface, velocity and shear stress τ = μ(du/dy) match, producing a slope kink and off-center peak.",
     broken_shortcut:
       "Equating velocity gradients du1/dy = du2/dy across fluids of unequal viscosity.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 8.3 (Example 8.2)",
+    textbook_ref: "Two-Layer Immiscible Channel Flow",
   },
   slip_herschel_bulkley: {
     concept_twist:
       "Yield-stress fluids move as a rigid plug where |τ| ≤ τ_y while Navier wall slip adds nonzero wall speed u_w.",
     broken_shortcut:
       "Applying classical no-slip parabolic Poiseuille flow to slip or yield-stress Herschel–Bulkley fluids.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 1.6 & Ch. 8",
+    textbook_ref: "Navier Wall Slip & Herschel–Bulkley Rheology",
   },
 };
 
@@ -326,7 +325,7 @@ export function renderStation03(ctx) {
   const titles = {
     separation: "3A · Boundary-Layer Separation",
     couette: "3B · Couette–Poiseuille Backflow",
-    twolayer: "3C · Two-Layer Interface (Ex. 8.2)",
+    twolayer: "3C · Two-Layer Interface",
     slip_hb: "3D · Navier Slip + Yield Plug",
   };
 
@@ -334,7 +333,7 @@ export function renderStation03(ctx) {
     <section class="panel-bay">
       <div class="bay-header">
         <span>${titles[m] || "Viscous & Separation Lab"}</span>
-        <span class="tag-mono">Ch. 1 / 8 / 9</span>
+        <span class="tag-mono">Viscous &amp; BL</span>
       </div>
       <div id="s3Sub"></div>
     </section>
@@ -756,7 +755,7 @@ export function renderStation03(ctx) {
       })}
       <div class="preset-row" style="margin-top:8px;">
         <button type="button" class="btn-machined" id="preP1">P = -1 (Zero Shear)</button>
-        <button type="button" class="btn-machined" id="preP3">P = -3 (Ex. 8.4 Q=0)</button>
+        <button type="button" class="btn-machined" id="preP3">P = -3 (Zero Net Flux)</button>
         <button type="button" class="btn-machined" id="preP0">P = 0 (Couette)</button>
       </div>
     `;
@@ -825,7 +824,7 @@ export function renderStation03(ctx) {
         })}
       </div>
       <div class="preset-row" style="margin-top:8px;">
-        <button type="button" class="btn-machined" id="preEx82">Ex. 8.2 (μ₁=5, μ₂=1 mPa·s)</button>
+        <button type="button" class="btn-machined" id="preEx82">Standard (μ₁=5, μ₂=1 mPa·s)</button>
         <button type="button" class="btn-machined" id="preEqualMu">Equal Viscosity (μ₁=μ₂=3)</button>
       </div>
     `;

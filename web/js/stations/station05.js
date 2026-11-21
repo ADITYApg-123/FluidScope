@@ -1105,7 +1105,7 @@ export async function renderStation05(ctx, renderOpts = {}) {
       { k: "Status", v: "Predict First (Locked)", color: "var(--amber)" },
     ]);
     setDrawerCards?.([
-      { k: "Textbook Specimen", v: prob.book_ref },
+      { k: "Topic Reference", v: prob.book_ref },
       { k: "Given Problem Setup", v: schematic.setupSummary },
       {
         k: "Predict-First Protocol",

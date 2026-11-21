@@ -9,10 +9,10 @@ const EQUATION_CONTEXT_META = {
   ns_x: {
     label: "Navier–Stokes x-Momentum",
     tex: "",
-    subtitle: "Term-by-term local inertia, convective inertia, pressure, viscous, and frame balance (Ch. 4 & Ch. 8).",
+    subtitle: "Term-by-term local inertia, convective inertia, pressure, viscous, and frame balance.",
   },
   radial_euler: {
-    label: "Radial Euler & Crocco (Eq. 4.43)",
+    label: "Radial Euler & Crocco",
     tex: "\\frac{\\partial p}{\\partial r} = \\rho \\frac{v_\\theta^2}{r}, \\qquad \\frac{\\partial H}{\\partial n} = \\frac{V}{g}\\,\\Omega_z",
     subtitle: "Outward pressure rise balances centrifugal acceleration; total head H varies across streamlines iff Ωz ≠ 0.",
   },

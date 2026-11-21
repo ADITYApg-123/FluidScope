@@ -621,14 +621,14 @@ function renderBay02Controls(ctx) {
   const titles = {
     kinematics: "2A · Kinematics & Flow Lines",
     vortex: "2B · Radial Vortex Trap",
-    vessel: "2C · Rotating Vessel (Ex. 4.8)",
+    vessel: "2C · Rotating Vessel",
     potential: "2D · Magnus Lift Cylinder",
   };
   host.innerHTML = `
     <section class="panel-bay">
       <div class="bay-header">
         <span>${titles[m]}</span>
-        <span class="tag-mono" style="font-size:12px;">Ch. 3 / 4.5 / 7</span>
+        <span class="tag-mono" style="font-size:12px;">Kinematics &amp; Vortex</span>
       </div>
       <div id="subControls"></div>
     </section>
@@ -648,8 +648,14 @@ function renderBay02Controls(ctx) {
     const tMaxScrub = Math.max(4.0, roundDec(4.0 * kp.t0, 2));
 
     sub.innerHTML = `
+      <div style="margin-bottom:12px;">
+        <button type="button" class="btn-machined btn-primary" id="btnStartKinLesson" style="width:100%;font-size:13px;font-weight:700;padding:8px 12px;background:var(--accent,#0072b2);color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 6px rgba(0,114,178,0.22);cursor:pointer;">
+          <span style="font-size:15px;">📚</span>
+          <span>Start Guided Lesson (6 Steps)</span>
+        </button>
+      </div>
       <div class="preset-row" style="margin-bottom:8px;">
-        <button type="button" class="btn-machined" id="preEx310">Ex 3.10 Unsteady</button>
+        <button type="button" class="btn-machined" id="preEx310">Unsteady Flow</button>
         <button type="button" class="btn-machined" id="preShear">Pure Shear</button>
         <button type="button" class="btn-machined" id="preFreeV">Free Vortex</button>
         <button type="button" class="btn-machined" id="preForcedV">Solid Rotation</button>
@@ -687,6 +693,13 @@ function renderBay02Controls(ctx) {
         <span id="kinScrubStatus" style="font-family:var(--font-mono);font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink-secondary);">t = ${fmt(kp.t_eval, 2)} / ${fmt(4 * kp.t0, 2)} s</span>
       </div>
     `;
+
+    const lessonBtn = document.getElementById("btnStartKinLesson");
+    if (lessonBtn) {
+      lessonBtn.onclick = () => {
+        document.getElementById("btnOpenLesson")?.click();
+      };
+    }
 
     document.getElementById("inU").value = kp.u_str;
     document.getElementById("inV").value = kp.v_str;
@@ -922,6 +935,12 @@ function renderBay02Controls(ctx) {
     });
 
     sub.innerHTML = `
+      <div style="margin-bottom:10px;">
+        <button type="button" class="btn-machined btn-primary" id="btnStartVortexLesson" style="width:100%;font-size:13px;font-weight:700;padding:8px 12px;background:var(--accent,#0072b2);color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 6px rgba(0,114,178,0.22);cursor:pointer;">
+          <span style="font-size:15px;">📚</span>
+          <span>Start Guided Lesson (5 Steps)</span>
+        </button>
+      </div>
       <div id="vortexSpecimenBadge" style="margin-bottom:8px;padding:6px 9px;border:1px solid var(--accent-border);background:var(--accent-soft);color:var(--cobalt-ink);border-radius:5px;font-family:var(--font-mono);font-size:12px;font-weight:600;">
         Fluid: Water (&rho; = 1000 kg/m&sup3;)
       </div>
@@ -938,6 +957,11 @@ function renderBay02Controls(ctx) {
         ${slidersHtml}
       </div>
     `;
+
+    const vLessonBtn = document.getElementById("btnStartVortexLesson");
+    if (vLessonBtn) {
+      vLessonBtn.onclick = () => document.getElementById("btnOpenLesson")?.click();
+    }
 
     document.getElementById("selVortex").onchange = (e) => {
       vp.mode = e.target.value;
@@ -1018,6 +1042,12 @@ function renderBay02Controls(ctx) {
   } else if (m === "vessel") {
     const tv = state.vesselParams;
     sub.innerHTML = `
+      <div style="margin-bottom:10px;">
+        <button type="button" class="btn-machined btn-primary" id="btnStartVesselLesson" style="width:100%;font-size:13px;font-weight:700;padding:8px 12px;background:var(--accent,#0072b2);color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 6px rgba(0,114,178,0.22);cursor:pointer;">
+          <span style="font-size:15px;">📚</span>
+          <span>Start Guided Lesson (4 Steps)</span>
+        </button>
+      </div>
       <div class="grid-2" style="margin-top:4px;">
         ${pairedFieldHtml({ idBase: "Rpm", paramName: "rpm", label: "Spin Speed", unit: "RPM", min: 0, max: 220, step: 1, value: tv.rpm, dec: 0 })}
         ${pairedFieldHtml({ idBase: "H", paramName: "vessel_height", label: "Height H", unit: "m", min: 0.25, max: 0.85, step: 0.005, value: tv.vessel_height, dec: 3 })}
@@ -1028,6 +1058,11 @@ function renderBay02Controls(ctx) {
         <button type="button" class="btn-machined" id="preEx48b">Ex 4.8 @ 130 RPM</button>
       </div>
     `;
+
+    const vesLessonBtn = document.getElementById("btnStartVesselLesson");
+    if (vesLessonBtn) {
+      vesLessonBtn.onclick = () => document.getElementById("btnOpenLesson")?.click();
+    }
 
     const scheduleVessel = () => debouncedRun("bay02", () => runBay02(ctx), 120);
     bindPairedControl({ idBase: "Rpm", obj: tv, key: "rpm", dec: 0, clampMin: 0, clampMax: 400, onAfterChange: scheduleVessel });
@@ -1103,6 +1138,12 @@ function renderBay02Controls(ctx) {
     const isHalfBody = pp.presetMode === "halfbody";
 
     sub.innerHTML = `
+      <div style="margin-bottom:10px;">
+        <button type="button" class="btn-machined btn-primary" id="btnStartPotLesson" style="width:100%;font-size:13px;font-weight:700;padding:8px 12px;background:var(--accent,#0072b2);color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 6px rgba(0,114,178,0.22);cursor:pointer;">
+          <span style="font-size:15px;">📚</span>
+          <span>Start Guided Lesson (5 Steps)</span>
+        </button>
+      </div>
       <div class="preset-row" style="margin-bottom:8px;">
         <button type="button" class="btn-machined ${!isHalfBody && Math.abs(pp.gamma) > 1e-6 ? "btn-primary" : ""}" id="prePotMagnus">Magnus Lifting Flow</button>
         <button type="button" class="btn-machined ${!isHalfBody && Math.abs(pp.gamma) < 1e-6 ? "btn-primary" : ""}" id="prePotDalembert">Zero-Spin Ideal D'Alembert</button>
@@ -1118,6 +1159,11 @@ function renderBay02Controls(ctx) {
         }
       </div>
     `;
+
+    const potLessonBtn = document.getElementById("btnStartPotLesson");
+    if (potLessonBtn) {
+      potLessonBtn.onclick = () => document.getElementById("btnOpenLesson")?.click();
+    }
 
     const schedulePot = () => debouncedRun("bay02", () => runBay02(ctx), 120);
     bindPairedControl({
@@ -1254,7 +1300,7 @@ async function runBay02(ctx, opts = {}) {
               ? "Steady velocity field: streamline, pathline, and streakline coincide; inspect Ωz and local vs convective acceleration."
               : "Unsteady flows separate streamline, pathline, and streakline; nonzero divergence violates incompressibility.",
             broken_shortcut: "Assuming streamlines equal particle trajectories or steady streamlines when ∂V/∂t ≠ 0.",
-            textbook_ref: "Som, Biswas & Chakraborty Ch. 3.3.3 (Example 3.10)",
+            textbook_ref: "Fluid Kinematics & Flow Lines",
             unsupported_reason: null,
             raw_query: `u = ${kp.u_str}, v = ${kp.v_str} at t0 = ${kp.t0}, t = ${kp.t_eval}`,
           },
@@ -1306,7 +1352,7 @@ async function runBay02(ctx, opts = {}) {
               ? "Free vortex is irrotational outside r=0 so total head H stays constant across streamlines."
               : "Rotational core has Ωz = 2ω ≠ 0 so Bernoulli cannot cross streamlines (∂H/∂n = VΩz/g).",
             broken_shortcut: "Applying constant-head Bernoulli across streamlines in a rotational forced vortex.",
-            textbook_ref: "Som, Biswas & Chakraborty Ch. 4.5 (Eq. 4.43–4.60)",
+            textbook_ref: "Vortex Flow & Radial Pressure Balance",
             unsupported_reason: null,
             raw_query: `${vp.mode} vortex from r1=${vp.r1} to r2=${vp.r2}`,
           },
@@ -1351,7 +1397,7 @@ async function runBay02(ctx, opts = {}) {
             obstacles: [],
             concept_twist: "Open vessel spills over its rim first rather than conserving full initial water volume.",
             broken_shortcut: "Assuming trapped fluid volume equals initial fill volume once paraboloid reaches the top rim.",
-            textbook_ref: "Som, Biswas & Chakraborty Ch. 4.5 (Example 4.8)",
+            textbook_ref: "Rotating Vessel Free Surface Paraboloid",
             unsupported_reason: null,
             raw_query: `Open rotating vessel at ${reqPayload.rpm} RPM`,
           },
@@ -1417,7 +1463,7 @@ async function runBay02(ctx, opts = {}) {
             obstacles: [],
             concept_twist: "Ideal potential flow with Γ predicts Kutta–Joukowski lift but zero D'Alembert drag.",
             broken_shortcut: "Expecting stagnation points to remain on the cylinder wall when |Γ| > 4πU∞a.",
-            textbook_ref: "Som, Biswas & Chakraborty Ch. 7 (Potential Flow & Magnus Effect)",
+            textbook_ref: "Potential Superposition & Magnus Effect",
             unsupported_reason: null,
             raw_query: `Magnus cylinder Uinf=${pp.u_inf}, alpha=${pp.alpha_deg ?? 0} deg, Gamma=${pp.gamma}`,
           },

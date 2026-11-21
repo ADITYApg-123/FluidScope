@@ -20,6 +20,10 @@ import { renderStation02, applyStation02Assumption } from "./stations/station02.
 import { renderStation03 } from "./stations/station03.js";
 import { renderStation04 } from "./stations/station04.js";
 import { renderStation05 } from "./stations/station05.js";
+import { createLab2aLesson } from "./lessons/lesson_02a.js";
+import { createLab2bLesson } from "./lessons/lesson_02b.js";
+import { createLab2cLesson } from "./lessons/lesson_02c.js";
+import { createLab2dLesson } from "./lessons/lesson_02d.js";
 
 const flowEngine = new FlowCanvasEngine(
   document.getElementById("flowCanvas"),
@@ -752,72 +756,72 @@ const FAMILY_FALLBACK_META = {
   kinematics_equation: {
     concept_twist: "Unsteady flows separate streamline, pathline, and streakline; nonzero divergence violates incompressibility.",
     broken_shortcut: "Assuming streamlines equal particle trajectories or streaklines when ∂V/∂t ≠ 0.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 3.3.3 (Example 3.10)",
+    textbook_ref: "Fluid Kinematics & Flow Lines",
   },
   vortex_flow: {
     concept_twist: "Radial pressure balances centrifugal acceleration; Bernoulli applies across streamlines only when Ωz = 0.",
     broken_shortcut: "Applying constant-head Bernoulli across streamlines inside a rotational forced vortex.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 4.5 (Eq. 4.43–4.60)",
+    textbook_ref: "Vortex Flow & Radial Pressure Balance",
   },
   rotating_vessel: {
     concept_twist: "Open rotating cylinder spills liquid at the top rim before uncovering a dry center base.",
     broken_shortcut: "Assuming trapped fluid volume equals initial fill volume once the paraboloid reaches the rim.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 4.5 (Example 4.8)",
+    textbook_ref: "Rotating Vessel Free Surface Paraboloid",
   },
   potential_superposition: {
     concept_twist: "Superposing uniform stream, doublet, and circulation generates Kutta–Joukowski lift with zero D'Alembert drag.",
     broken_shortcut: "Expecting stagnation points to remain on the cylinder wall when |Γ| > 4πU∞a.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 7 (Potential Flow & Magnus Effect)",
+    textbook_ref: "Potential Superposition & Magnus Effect",
   },
   falkner_skan: {
     concept_twist: "Adverse Hartree β < 0 forces positive wall curvature and an inflection point ahead of separation at β ≈ -0.1988.",
     broken_shortcut: "Assuming boundary-layer velocity profiles stay monotonic without an inflection point under dp/dx > 0.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 9.6 (Falkner–Skan & Eq. 9.42)",
+    textbook_ref: "Falkner–Skan Boundary Layer & Inflection",
   },
   bl_separation: {
     concept_twist: "Adverse pressure gradient (dp/dx > 0) forces positive wall curvature and boundary-layer reversal past Λ = -12.",
     broken_shortcut: "Relying on inviscid potential flow (D'Alembert's paradox) which misses wake separation and pressure drag.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 9.6 (Eq. 9.41–9.42, Fig. 9.5)",
+    textbook_ref: "Boundary-Layer Separation & Pressure Gradient",
   },
   couette_poiseuille: {
     concept_twist: "Moving-wall Couette shear competes with opposing pressure gradient, reversing lower-wall shear for P < -1 and reaching Q = 0 at P = -3.",
     broken_shortcut: "Assuming a linear Couette velocity profile when a nonzero axial pressure gradient is present.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 8.3 (Example 8.4, Eq. 8.42)",
+    textbook_ref: "Generalized Couette–Poiseuille Backflow",
   },
   two_layer_poiseuille: {
     concept_twist: "At an immiscible liquid interface, velocity and shear stress τ = μ(du/dy) match, producing a slope kink and off-center peak.",
     broken_shortcut: "Equating velocity gradients du1/dy = du2/dy across fluids of unequal viscosity.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 8.3 (Example 8.2)",
+    textbook_ref: "Two-Layer Immiscible Channel Flow",
   },
   slip_herschel_bulkley: {
     concept_twist: "Yield-stress fluids move as a rigid plug where |τ| ≤ τ_y while Navier wall slip adds nonzero wall speed u_w.",
     broken_shortcut: "Applying classical no-slip parabolic Poiseuille flow to slip or yield-stress Herschel–Bulkley fluids.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 1.6 & Ch. 8",
+    textbook_ref: "Navier Wall Slip & Herschel–Bulkley Rheology",
   },
   hydraulic_jump: {
     concept_twist: "Hydraulic jumps conserve integral specific force Fs rather than specific energy Es due to turbulent roller dissipation.",
     broken_shortcut: "Setting Es1 = Es2 across a hydraulic jump and ignoring irreversible eddy head loss hj.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 12.4 (Example 12.11, Eq. 12.48)",
+    textbook_ref: "Open-Channel Hydraulic Jump & Specific Force",
   },
   sudden_expansion: {
     concept_twist: "Annular corner eddies hold shoulder pressure p' ≈ p1 across an abrupt expansion, reducing pressure recovery via Borda–Carnot loss.",
     broken_shortcut: "Using ideal lossless Bernoulli Δp = ½ρ(V1² - V2²) across a sudden pipe expansion.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 11.5 (Eq. 11.18–11.23)",
+    textbook_ref: "Borda–Carnot Sudden Pipe Expansion",
   },
   accelerating_tank: {
     concept_twist: "Isobars tilt perpendicular to effective body force g_eff = g - a_frame; in free fall (az = -g), g_eff = 0 halts bottom orifice flow.",
     broken_shortcut: "Applying static Torricelli efflux v = √(2gh) inside an accelerating or free-falling tank.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 2.9 (Eq. 2.86–2.88, p. 97–99)",
+    textbook_ref: "Accelerating & Free-Falling Tank Hydrostatics",
   },
   lbm_tunnel: {
     concept_twist: "Viscous D2Q9 Lattice–Boltzmann flow sheds alternating Kármán vortices unless stabilized by geometry such as a wake splitter.",
     broken_shortcut: "Assuming steady symmetric potential streamlines behind a bluff cylinder at Re ~ 100.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 10 (Unsteady Viscous Wake & LBM)",
+    textbook_ref: "2D Lattice–Boltzmann Wind Tunnel & Wake",
   },
   unsupported_3d: {
     concept_twist: "3D compressible and turbomachinery flows fall outside built 2D/1D incompressible exact solvers.",
     broken_shortcut: "Extrapolating 2D incompressible Bernoulli across 3D shocks or rotating impeller passages.",
-    textbook_ref: "Som, Biswas & Chakraborty Ch. 14 & Ch. 16",
+    textbook_ref: "3D Compressible & Turbomachinery Regime",
   },
 };
 
@@ -971,6 +975,31 @@ const prevBtn = document.getElementById("btnPrevLab");
 if (prevBtn) prevBtn.onclick = () => stepLab(-1);
 const nextBtn = document.getElementById("btnNextLab");
 if (nextBtn) nextBtn.onclick = () => stepLab(1);
+
+let activeLesson = null;
+
+const LESSON_FACTORIES = {
+  "02:kinematics": createLab2aLesson,
+  "02:vortex": createLab2bLesson,
+  "02:vessel": createLab2cLesson,
+  "02:potential": createLab2dLesson,
+};
+
+const openLessonBtn = document.getElementById("btnOpenLesson");
+if (openLessonBtn) {
+  openLessonBtn.onclick = () => {
+    const active = getActiveLabEntry();
+    const key = `${active.bay}:${active.sub}`;
+    const factory = LESSON_FACTORIES[key];
+    if (factory) {
+      activeLesson = factory();
+      activeLesson.open(makeBayCtx());
+    } else {
+      const title = active.label || `Lab ${active.id}`;
+      alert(`Guided lesson for "${title}" is coming soon! Try the lessons for Labs 2A, 2B, 2C, and 2D.`);
+    }
+  };
+}
 
 const openCoachBtn = document.getElementById("btnOpenCoach");
 if (openCoachBtn) {

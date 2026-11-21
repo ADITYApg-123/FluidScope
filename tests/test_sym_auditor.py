@@ -28,7 +28,7 @@ def test_rotational_forced_vortex_breaks_global_bernoulli_only():
     res = audit_assumptions({"steady": True, "inviscid": True, "irrotational": False})
     assert res["bernoulli_status"]["valid_along_streamline"] is True
     assert res["bernoulli_status"]["valid_globally"] is False
-    assert "4.43" in res["symbolic"]["cross_stream_tex"]
+    assert "Crocco" in res["symbolic"]["cross_stream_tex"]
     assert any("Ωz" in w for w in res["warnings"])
 
 

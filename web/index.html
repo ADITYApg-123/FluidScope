@@ -1,17 +1,22 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FLUIDSCOPE AI — Interactive Fluid Mechanics Concept-Twist Workbench</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231D4ED8'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='monospace' font-weight='700' font-size='14' fill='%23FFFFFF'%3EFS%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231D4ED8'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='monospace' font-weight='700' font-size='14' fill='%23FFFFFF'%3EFS%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="/styles/telemetry.css" />
 </head>
+
 <body>
   <div class="bench-shell">
     <!-- Top Header Bar -->
@@ -20,7 +25,7 @@
         <span class="brand-mark">FS</span>
         <span class="brand-text-wrap">
           <span class="brand-code">FluidScope AI</span>
-          <span class="brand-sub">Som, Biswas &amp; Chakraborty Workbench</span>
+          <span class="brand-sub">Interactive Fluid Mechanics Workbench</span>
         </span>
       </button>
 
@@ -36,7 +41,8 @@
           <span id="themeIcon">&#9788;</span>
           <span id="themeLabel">Light Mode</span>
         </button>
-        <button class="status-chip" id="aiEngineBadge" title="Configure Offline / Gemini / OpenAI-Compatible AI">AI: Offline</button>
+        <button class="status-chip" id="aiEngineBadge" title="Configure Offline / Gemini / OpenAI-Compatible AI">AI:
+          Offline</button>
         <span class="status-chip status-ok" id="kernelBadge">Kernel: Ready</span>
       </div>
     </header>
@@ -49,9 +55,12 @@
       <!-- Unified Physics Labs Selector Strip -->
       <div class="lab-selector-strip hidden" id="labSelectorStrip" role="navigation" aria-label="Physics Lab Modules">
         <div class="lab-category-tabs" role="tablist" aria-label="Physics Lab Categories">
-          <button type="button" class="lab-cat-tab active" data-lab-cat="kinematics" role="tab" aria-selected="true">Kinematics &amp; Vortex</button>
-          <button type="button" class="lab-cat-tab" data-lab-cat="viscous" role="tab" aria-selected="false">Viscous &amp; BL</button>
-          <button type="button" class="lab-cat-tab" data-lab-cat="conservation" role="tab" aria-selected="false">Conservation &amp; LBM</button>
+          <button type="button" class="lab-cat-tab active" data-lab-cat="kinematics" role="tab"
+            aria-selected="true">Kinematics &amp; Vortex</button>
+          <button type="button" class="lab-cat-tab" data-lab-cat="viscous" role="tab" aria-selected="false">Viscous
+            &amp; BL</button>
+          <button type="button" class="lab-cat-tab" data-lab-cat="conservation" role="tab"
+            aria-selected="false">Conservation &amp; LBM</button>
         </div>
         <div class="lab-pill-group is-active-group" data-lab-group="kinematics">
           <span class="lab-group-label">KINEMATICS &amp; VORTEX</span>
@@ -64,7 +73,7 @@
           <span class="lab-group-label">VISCOUS &amp; BL</span>
           <button type="button" class="lab-pill" data-bay="03" data-sub="separation">BL Separation</button>
           <button type="button" class="lab-pill" data-bay="03" data-sub="couette">Couette-Poiseuille</button>
-          <button type="button" class="lab-pill" data-bay="03" data-sub="twolayer">Two-Layer (Ex 8.2)</button>
+          <button type="button" class="lab-pill" data-bay="03" data-sub="twolayer">Two-Layer Flow</button>
           <button type="button" class="lab-pill" data-bay="03" data-sub="slip_hb">Slip &amp; Herschel-Bulkley</button>
         </div>
         <div class="lab-pill-group" data-lab-group="conservation">
@@ -75,9 +84,12 @@
           <button type="button" class="lab-pill" data-bay="04" data-sub="tank">Accel / Free-Fall Tank</button>
         </div>
         <div class="lab-nav-actions">
+          <button type="button" class="btn-machined btn-xs" id="btnOpenLesson" title="Open Guided Interactive Lesson"
+            style="font-weight:600;color:var(--cobalt-ink);">📚 Lesson</button>
           <button type="button" class="btn-machined btn-xs" id="btnPrevLab" title="Previous Lab">&lsaquo; Prev</button>
           <button type="button" class="btn-machined btn-xs" id="btnNextLab" title="Next Lab">Next &rsaquo;</button>
-          <button type="button" class="btn-machined btn-xs" id="btnOpenCoach" title="Ask Solver-Grounded Doubt Coach">Ask Coach</button>
+          <button type="button" class="btn-machined btn-xs" id="btnOpenCoach"
+            title="Ask Solver-Grounded Doubt Coach">Ask Coach</button>
         </div>
       </div>
 
@@ -89,7 +101,8 @@
 
             <!-- Interactive Assumption Switch Matrix -->
             <section class="panel-bay assumption-panel collapsed" id="assumptionPanel">
-              <button type="button" class="bay-header assumption-accordion-header" id="assumptionAccordionBtn" aria-expanded="false" aria-controls="assumptionAccordionBody">
+              <button type="button" class="bay-header assumption-accordion-header" id="assumptionAccordionBtn"
+                aria-expanded="false" aria-controls="assumptionAccordionBody">
                 <span>Active Physics Assumptions</span>
                 <span class="assumption-header-badges">
                   <span class="tag-mono" id="assumptionSummaryPill">Audit</span>
@@ -110,21 +123,10 @@
 
         <!-- Main Visualization Stage -->
         <section class="viewport-stage">
-          <!-- SymPy Governing Equation Auditor Strip -->
-          <div class="equation-bar" id="equationBar">
-            <div class="eq-strip-label">Governing Equation Audit</div>
-            <div class="eq-terms" id="eqTermsRow"></div>
-            <div class="eq-cross-stream" id="eqCrossStream"></div>
-          </div>
-
-          <!-- Plain-English Concept Twist Banner -->
-          <div class="concept-banner" id="conceptBanner">
-            <div class="concept-banner-main" id="conceptBannerText">
-              <strong>Live Flow vs. Formula Comparison:</strong> Inspect the physical flow field on the left and compare Exact Governing Physics against naive shortcuts on the right.
-            </div>
-            <div class="concept-banner-trap" id="conceptBannerTrap">
-              <strong>Watch For:</strong> Shaded red bands highlight errors created when hidden textbook assumptions break.
-            </div>
+          <!-- Hidden hooks so existing scripts don't throw null errors -->
+          <div class="concept-banner" id="conceptBanner" style="display:none !important;">
+            <div id="conceptBannerText"></div>
+            <div id="conceptBannerTrap"></div>
           </div>
 
           <!-- Dual Side-by-Side Visualization Deck -->
@@ -134,13 +136,15 @@
                 <span id="primaryTitle">Flow Field Visualization</span>
                 <div class="titlebar-right">
                   <div class="legend-strip" id="primaryLegend"></div>
-                  <button type="button" class="btn-machined btn-xs" id="flowPlayPauseBtn" aria-pressed="false" title="Pause / Resume Motion">Pause</button>
+                  <button type="button" class="btn-machined btn-xs" id="flowPlayPauseBtn" aria-pressed="false"
+                    title="Pause / Resume Motion">Pause</button>
                 </div>
               </div>
               <div class="canvas-stage-wrap">
                 <canvas id="flowCanvas"></canvas>
               </div>
-              <div class="probe-hud" id="flowProbeHud">Move cursor over the flow field to inspect live velocity and vorticity</div>
+              <div class="probe-hud" id="flowProbeHud">Move cursor over the flow field to inspect live velocity and
+                vorticity</div>
             </div>
 
             <div class="canvas-bay" id="secondaryCanvasBay">
@@ -156,9 +160,11 @@
               </div>
               <div class="probe-hud" id="plotProbeHud">Hover over the curve to read exact values</div>
               <div class="plot-table-bar">
-                <button type="button" class="btn-machined btn-xs" id="plotDataTableToggle" aria-expanded="false" aria-controls="plotDataTableWrap">View Plotted Data Table</button>
+                <button type="button" class="btn-machined btn-xs" id="plotDataTableToggle" aria-expanded="false"
+                  aria-controls="plotDataTableWrap">View Plotted Data Table</button>
               </div>
-              <div class="plot-table-wrap hidden" id="plotDataTableWrap" role="region" aria-label="Plotted Curve Data Table"></div>
+              <div class="plot-table-wrap hidden" id="plotDataTableWrap" role="region"
+                aria-label="Plotted Curve Data Table"></div>
             </div>
           </div>
 
@@ -172,14 +178,23 @@
               <div class="drawer-metrics" id="drawerMetrics"></div>
               <button class="btn-machined btn-xs" id="toggleDrawerBtn">Hide Details</button>
             </div>
-            <div class="drawer-body" id="drawerBody"></div>
+            <div class="drawer-body" id="drawerBody">
+              <!-- SymPy Governing Equation Auditor Strip (Moved from top to diagnostics drawer) -->
+              <div class="equation-bar" id="equationBar" style="margin-bottom:12px;">
+                <div class="eq-strip-label">Governing Equation Audit</div>
+                <div class="eq-terms" id="eqTermsRow"></div>
+                <div class="eq-cross-stream" id="eqCrossStream"></div>
+              </div>
+            </div>
           </section>
         </section>
       </div>
-      <aside id="coachDrawerHost" class="coach-drawer-host" aria-hidden="true" aria-label="Solver-Grounded Doubt Coach"></aside>
+      <aside id="coachDrawerHost" class="coach-drawer-host" aria-hidden="true" aria-label="Solver-Grounded Doubt Coach">
+      </aside>
     </main>
   </div>
 
-  <script type="module" src="/js/app.js"></script>
+  <script type="module" src="/js/app.js?v=6"></script>
 </body>
+
 </html>

@@ -115,5 +115,5 @@ def test_grounded_coach_endpoint():
     reply = coach_res.json()["data"]
     assert reply["provider_used"] == "offline_grounded_coach"
     assert len(reply["grounded_facts"]) >= 2
-    assert "Ch. 12.4" in reply["textbook_citation"]
+    assert "Hydraulic Jump" in reply["textbook_citation"]
     assert "3.53" in reply["answer"]

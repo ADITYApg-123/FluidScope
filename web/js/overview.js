@@ -132,20 +132,25 @@ export function renderOverview(handlers) {
         const meta = LAB_OVERVIEW_META[item.id] || {};
         const isInsight = meta.tone === "insight";
         const calloutClass = isInsight ? "lab-card-trap insight-callout" : "lab-card-trap";
+        const hasLesson = ["2A", "2B", "2C", "2D"].includes(item.id);
         return `
           <article class="lab-card" data-lab-id="${item.id}" data-lab-cat="${item.category}">
             <div>
               <div class="lab-card-meta">
                 <span>${item.chapter}</span>
                 <span class="lab-badge">${meta.tag || item.category}</span>
+                ${hasLesson ? `<span class="tag-mono" style="background:var(--accent-soft);color:var(--cobalt-ink);border:1px solid var(--accent-border);font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;">📚 Guided Lesson</span>` : ""}
               </div>
               <h3 class="lab-card-title">${item.label}</h3>
               <p class="lab-card-desc">${meta.desc || ""}</p>
               <div class="${calloutClass}">${meta.callout || ""}</div>
             </div>
             <div class="lab-card-footer">
-              <span class="lab-card-footer-meta">Station ${item.bay} · ${item.id}</span>
-              <button type="button" class="btn-machined btn-primary" data-launch-bay="${item.bay}" data-launch-sub="${item.sub}">Open Lab &rarr;</button>
+              <span class="lab-card-footer-meta">Lab ${item.id} · Interactive Simulation</span>
+              <div style="display:flex;align-items:center;gap:6px;">
+                ${hasLesson ? `<button type="button" class="btn-machined btn-xs" data-launch-lesson-bay="${item.bay}" data-launch-lesson-sub="${item.sub}" style="font-weight:700;color:var(--cobalt-ink);background:var(--accent-soft);border-color:var(--accent-border);padding:6px 10px;">📚 Start Lesson</button>` : ""}
+                <button type="button" class="btn-machined btn-primary" data-launch-bay="${item.bay}" data-launch-sub="${item.sub}">Open Lab &rarr;</button>
+              </div>
             </div>
           </article>
         `;
@@ -155,13 +160,22 @@ export function renderOverview(handlers) {
     grid.querySelectorAll("[data-launch-bay]").forEach((btn) => {
       btn.onclick = () => handlers.openLab(btn.dataset.launchBay, btn.dataset.launchSub);
     });
+
+    grid.querySelectorAll("[data-launch-lesson-bay]").forEach((btn) => {
+      btn.onclick = () => {
+        handlers.openLab(btn.dataset.launchLessonBay, btn.dataset.launchLessonSub);
+        setTimeout(() => {
+          document.getElementById("btnOpenLesson")?.click();
+        }, 250);
+      };
+    });
   };
 
   host.innerHTML = `
     <!-- Hero Band -->
     <section class="hero-band">
       <div class="hero-copy">
-        <div class="hero-eyebrow">SOM, BISWAS &amp; CHAKRABORTY (3RD ED.) · NEURO-SYMBOLIC WORKBENCH</div>
+        <div class="hero-eyebrow">NEURO-SYMBOLIC FLUID MECHANICS WORKBENCH</div>
         <h1 class="hero-title">See exactly where naive textbook formulas break.</h1>
         <p class="hero-subtitle">
           In fluid mechanics exams and engineering design, shortcuts like
@@ -197,7 +211,7 @@ export function renderOverview(handlers) {
       <!-- Worked Specimen Preview Card -->
       <aside class="hero-specimen-card">
         <div class="specimen-top">
-          <span>Specimen · Ch. 4.5 (&omega;=10 rad/s, r=0.15&rarr;0.45 m)</span>
+          <span>Example · Forced vortex (&omega;=10 rad/s, r=0.15&rarr;0.45 m)</span>
           <span class="specimen-tag-trap">BERNOULLI TRAP</span>
         </div>
 
@@ -241,7 +255,7 @@ export function renderOverview(handlers) {
           <div class="step-num">STEP 01 · INSPECT OR PASTE</div>
           <div class="step-title">Spot the Hidden Assumption</div>
           <div class="step-desc">
-            Paste any textbook problem in the <strong>AI Translator</strong> or pick one of 12 Physics Labs. Toggle assumptions like <em>Steady</em>, <em>Irrotational</em>, or <em>No-Slip</em> to see governing terms strike out live.
+            Paste any fluid mechanics problem in the <strong>AI Translator</strong> or pick one of 12 Physics Labs. Toggle assumptions like <em>Steady</em>, <em>Irrotational</em>, or <em>No-Slip</em> to see governing terms strike out live.
           </div>
         </div>
         <div class="step-card">
@@ -285,17 +299,17 @@ export function renderOverview(handlers) {
       <div class="showcase-grid" id="overviewLabsGrid"></div>
     </section>
 
-    <!-- Complete 12-Row Clickable Textbook Coverage Map -->
+    <!-- Complete 12-Row Clickable Topic Map -->
     <section>
       <div class="section-heading-row">
-        <h2 class="section-title">Som, Biswas &amp; Chakraborty (3rd Ed.) Coverage Map</h2>
-        <span class="section-sub">All 12 chapters and examples — click any row to launch its live simulation</span>
+        <h2 class="section-title">Topic Map</h2>
+        <span class="section-sub">All 12 topics, click any row to launch its live simulation</span>
       </div>
       <div class="chapter-table-wrap">
         <table class="chapter-table" id="chapterCoverageTable">
           <thead>
             <tr>
-              <th>Textbook Ref</th>
+              <th>Topic Area</th>
               <th>Topic &amp; Governing Physics</th>
               <th>Interactive Lab</th>
               <th>Core Concept Twist Demonstrated</th>

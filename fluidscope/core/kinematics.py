@@ -1,8 +1,8 @@
-"""Equation-driven 2D Eulerian & Lagrangian Kinematics Engine (Som, Biswas & Chakraborty Ch. 3).
+"""Equation-driven 2D Eulerian & Lagrangian Kinematics Engine.
 
 Supports arbitrary SymPy velocity fields u(x, y, t), v(x, y, t):
 - Symbolic divergence, vorticity (Ωz), rotation (ωz), shear/linear strain, local & convective accel.
-- Streamlines, Pathlines, and Streaklines (matching Example 3.10 exact definitions).
+- Streamlines, Pathlines, and Streaklines (Lagrangian trajectories & tracer loci).
 - Advected & deforming fluid square (translation, shear, rotation visualizer).
 - Closed-loop circulation Γ and numerical Stokes' theorem comparison.
 """
@@ -273,7 +273,7 @@ def analyze_kinematics(
     dv_dt = sp.simplify(sp.diff(v_expr, _T))
 
     div_expr = sp.simplify(du_dx + dv_dy)
-    vort_expr = sp.simplify(dv_dx - du_dy)  # Som-Biswas-Chakraborty Ωz
+    vort_expr = sp.simplify(dv_dx - du_dy)  # Vorticity Ωz
     rot_expr = sp.simplify(vort_expr / 2)   # fluid angular velocity ωz
     shear_expr = sp.simplify(dv_dx + du_dy) # engineering shear rate γ̇_xy
 

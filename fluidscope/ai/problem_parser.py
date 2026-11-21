@@ -182,7 +182,7 @@ def _extract_equations(text: str) -> tuple[str | None, str | None]:
 
 
 def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
-    """Deterministic text -> solver parser grounded in Som, Biswas & Chakraborty."""
+    """Deterministic text -> solver parser grounded in fluid mechanics principles."""
     raw = (text or "").strip()
     low = raw.lower()
 
@@ -247,7 +247,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
                 else "Steady velocity field: streamline, pathline, and streakline coincide; inspect Ωz vs shear strain."
             ),
             broken_shortcut="Assuming streamlines equal particle trajectories or streaklines when ∂V/∂t ≠ 0.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 3.3.3 (Example 3.10, p. 135-137)",
+            textbook_ref="Fluid Kinematics & Flow Lines",
             raw_query=raw,
         )
 
@@ -281,9 +281,9 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             params={},
             concept_twist="Compressible 3D / shock / turbomachinery regime requires energy + entropy relations beyond incompressible 2D solvers.",
             broken_shortcut="Incompressible Bernoulli or 2D planar continuity cannot resolve shocks or blade-passage density jumps.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 14 / Ch. 16",
+            textbook_ref="Compressible Aerodynamics & Turbomachinery",
             unsupported_reason=(
-                "This query requires 3D compressible/rotodynamic solvers (Ch. 14–16), which are outside the currently built "
+                "This query requires 3D compressible/rotodynamic solvers, which are outside the currently built "
                 "2D/1D exact solvers. No fabricated diagram will be drawn; SymPy equation audit remains active."
             ),
             raw_query=raw,
@@ -353,11 +353,11 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             params={"radius": radius, "vessel_height": height, "initial_depth": initial_depth, "rpm": rpm},
             concept_twist="Forced vortex solid-body rotation: liquid spills at top rim and uncovers dry center area while total head rises with r².",
             broken_shortcut="Applying constant-head Bernoulli across rotating radii or ignoring base detachment volume loss.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 4.5 (Example 4.8, p. 208-209)",
+            textbook_ref="Rotating Vessel & Paraboloid Hydrostatics",
             raw_query=raw,
         )
 
-    # 3b. 2D Potential Flow Superposition (Magnus / Doublet / Rankine Half-Body, Ch. 7)
+    # 3b. 2D Potential Flow Superposition (Magnus / Doublet / Rankine Half-Body)
     if is_potential_query:
         speed_pos = _num_pat(signed=False, units=_SPEED_UNITS)
         speed_pos_req = _num_pat(signed=False, units=_SPEED_UNITS, require_unit=True)
@@ -419,7 +419,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             },
             concept_twist="Adding circulation Γ breaks aft-fore pressure symmetry and produces finite Kutta-Joukowski Magnus lift L' = -ρ U∞ Γ without viscosity.",
             broken_shortcut="Expecting zero lift (D'Alembert paradox) around a rotating/circulating cylinder or applying viscous airfoil drag to potential flow.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 7.4–7.7 (Potential Superposition & Magnus Lift)",
+            textbook_ref="Potential Superposition & Magnus Circulation",
             raw_query=raw,
         )
 
@@ -486,7 +486,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
                 else "Free vortex is irrotational for r > 0 (dH/dr = 0), so Bernoulli applies across streamlines away from the singular core."
             ),
             broken_shortcut="Using Bernoulli between concentric radii r1 and r2 in a rotational forced vortex core.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 4.5 (Eq. 4.43-4.60, p. 200-208)",
+            textbook_ref="Vortex Dynamics & Radial Pressure Balance",
             raw_query=raw,
         )
 
@@ -538,7 +538,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             params={"width": w, "v1": v1, "h1": h1 if h1 is not None else (0.305 if q is None else None), "discharge": q},
             concept_twist="Hydraulic jump dissipates mechanical head hj = (h2-h1)³/(4h1h2) via turbulent rollers; only momentum is conserved.",
             broken_shortcut="Equating upstream & downstream specific energy (Es1 = Es2), which overpredicts subcritical depth h2.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 12.4 (Examples 12.11-12.12, p. 601-605)",
+            textbook_ref="Hydraulic Jump & Energy Dissipation",
             raw_query=raw,
         )
 
@@ -577,11 +577,11 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             params={"D1": d1, "D2": d2, "V1": v1},
             concept_twist="Annular corner pressure remains ~p1 during jet separation; turbulent mixing dissipates (V1-V2)²/2g.",
             broken_shortcut="Ideal Bernoulli Δp = ½ρ(V1²-V2²), overestimating downstream pressure recovery.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 11.5 (Eq. 11.18-11.23, p. 539-540)",
+            textbook_ref="Borda–Carnot Pipe Expansion Momentum",
             raw_query=raw,
         )
 
-    # 7. Accelerating / Free-fall tank (Ch 2.9)
+    # 7. Accelerating / Free-fall tank (Non-inertial)
     if any(k in low for k in ["free fall", "free-fall", "falling", "accelerating tank", "orifice", "leak"]):
         is_ff = any(k in low for k in ["free fall", "free-fall", "falling"])
         accel_pat = _num_pat(signed=True, units=_ACCEL_UNITS)
@@ -608,11 +608,11 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             params={"ax": ax, "az": az, "h0": h0},
             concept_twist="Non-inertial gravity g_eff = g + az vanishes in free fall (dp/dz = 0), so liquid remains horizontal and stops leaking!",
             broken_shortcut="Using static Torricelli √(2gh) in a freely falling frame.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 2.9 (Eq. 2.86-2.88, p. 97-99)",
+            textbook_ref="Accelerating Tank & Non-Inertial Hydrostatics",
             raw_query=raw,
         )
 
-    # 8. Two-layer immiscible channel (Ex 8.2)
+    # 8. Two-layer immiscible channel
     if any(k in low for k in ["two-layer", "two layer", "immiscible", "separate layers"]):
         visc_pat = _num_pat(signed=False, units=_VISC_UNITS)
         dpdx_pat = _num_pat(signed=True, units=_DPDX_UNITS)
@@ -629,11 +629,11 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             params={"mu1": mu1, "mu2": mu2, "dp_dx": dp_dx},
             concept_twist="Interface enforces shear stress continuity μ1(du1/dy) = μ2(du2/dy), producing a slope kink and peak inside the less viscous layer.",
             broken_shortcut="Assuming du1/dy = du2/dy across the interface or u_max at geometric centerline y = 0.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 8.3 (Example 8.2, p. 404-407)",
+            textbook_ref="Two-Layer Viscous Channel Flow",
             raw_query=raw,
         )
 
-    # 9. Generalized Couette-Poiseuille (Ex 8.4)
+    # 9. Generalized Couette-Poiseuille
     if any(k in low for k in ["couette", "moving plate", "upper plate", "plate moves", "zero net flow", "recirculat"]):
         p_pat = _num_pat(signed=True)
         p_ext = _extract_first_float(rf"(?<!pressure\s)\bP\s*=\s*{p_pat}", raw, flags=0)
@@ -648,7 +648,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             params={"P": p_val},
             concept_twist="Adverse pressure gradient P < -1 triggers backflow near the stationary wall; P = -3 yields zero net discharge Q = 0.",
             broken_shortcut="Neglecting opposing pressure gradient curvature in plate-driven shear flow.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 8.3 (Eq. 8.41-8.42, Ex 8.4, p. 410-413)",
+            textbook_ref="Generalized Couette–Poiseuille Backflow",
             raw_query=raw,
         )
 
@@ -712,7 +712,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             params={"n": n_val, "tau_y": tau_y, "slip_length": ls},
             concept_twist="Navier wall slip boosts discharge by $1 + 3 l_s / H$ while yield stress τ_y creates an unyielded solid-like plug core |τ| ≤ τ_y.",
             broken_shortcut="Standard no-slip Newtonian Hagen-Poiseuille parabolic law.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 1.6 (p. 24) & Microchannel Slip",
+            textbook_ref="Non-Newtonian Yield & Navier Slip",
             raw_query=raw,
         )
 
@@ -727,7 +727,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             params={"beta": max(-0.198, min(1.5, beta_val))},
             concept_twist="Exact similarity ODE f''' + f f'' + β(1 - (f')²) = 0: adverse β < 0 pushes wall curvature positive and approaches separation at β ≈ -0.1988.",
             broken_shortcut="Using Blasius flat-plate friction Cf·√Rex = 0.6641 when β ≠ 0 (non-zero streamwise pressure gradient).",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 9.3 & 9.6 (Eq. 9.24, Fig. 9.6)",
+            textbook_ref="Falkner–Skan Boundary Layer",
             raw_query=raw,
         )
 
@@ -742,7 +742,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             params={"lambda_pg": lam_val},
             concept_twist="Adverse dp/dx > 0 enforces positive wall curvature ∂²u/∂y²|w > 0 and an interior inflection point; detachment hits at τ_w = 0.",
             broken_shortcut="Assuming potential Cp around cylinder rear or treating d²u/dy²|w = 0 as separation.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 9.6 (Eq. 9.41-9.42, Fig. 9.5-9.6, p. 462-466)",
+            textbook_ref="Boundary Layer Separation & Wall Curvature",
             raw_query=raw,
         )
 
@@ -771,7 +771,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
             obstacles=obstacles,
             concept_twist="Bluff body wakes shed alternating Kármán vortices above critical Re unless stabilized by a wake splitter baffle.",
             broken_shortcut="Steady inviscid potential theory predicts zero drag (D'Alembert paradox) and symmetric aft streamlines.",
-            textbook_ref="Som, Biswas & Chakraborty Ch. 9.6 & Ch. 10",
+            textbook_ref="Computational Fluid Dynamics (LBM Wake Shedding)",
             raw_query=raw,
         )
 
@@ -783,9 +783,9 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
         params={},
         concept_twist="Could not match an exact implemented 1D/2D physics family from phrasing alone.",
         broken_shortcut="Avoid forcing an arbitrary diagram; refine input with equations u=..., v=... or choose a physical scenario.",
-        textbook_ref="Som, Biswas & Chakraborty Index",
+        textbook_ref="Fluid Mechanics Core Principles",
         unsupported_reason=(
-            "Try pasting an explicit 2D equation (e.g., 'u = x/(1+t), v = 2'), a textbook problem "
+            "Try pasting an explicit 2D equation (e.g., 'u = x/(1+t), v = 2'), a fluid mechanics problem "
             "(hydraulic jump, forced vortex, rotating tank, two-layer flow, sudden expansion, BL separation), "
             "or a 2D obstacle description (e.g., 'flow past cylinder with splitter plate')."
         ),
@@ -793,7 +793,7 @@ def parse_problem_offline(text: str) -> ParsedPhysicsQuery:
     )
 
 
-_SYSTEM_PARSE_PROMPT = """You are a strict Neuro-Symbolic Fluid Mechanics Problem Translator for Som, Biswas & Chakraborty.
+_SYSTEM_PARSE_PROMPT = """You are a strict Neuro-Symbolic Fluid Mechanics Problem Translator.
 Convert the student's text into a JSON object matching:
 {
   "family": one of ["kinematics_equation","vortex_flow","rotating_vessel","potential_superposition","falkner_skan","bl_separation","couette_poiseuille","two_layer_poiseuille","slip_herschel_bulkley","hydraulic_jump","sudden_expansion","accelerating_tank","lbm_tunnel","unsupported_3d"],
@@ -803,7 +803,7 @@ Convert the student's text into a JSON object matching:
   "obstacles": [ optional {"type":"circle"|"rect","x":0.25,"y":0.5,"r":0.1,"x0":0.3,"y0":0.45,"x1":0.55,"y1":0.55} ],
   "concept_twist": "one crisp sentence naming the broken assumption",
   "broken_shortcut": "one crisp sentence naming what naive textbook formula fails",
-  "textbook_ref": "exact chapter/example citation",
+  "textbook_ref": "topic area reference",
   "unsupported_reason": null or reason string if unsupported_3d
 }
 NEVER solve differential equations or compute output pressure/velocity yourself; only extract structured parameters."""

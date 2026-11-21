@@ -1,7 +1,7 @@
 /**
  * Viscous & Boundary-Layer Scene Mappers
- * (Two-Layer Ex. 8.2, Couette-Poiseuille Ex. 8.4, Slip + Herschel-Bulkley, Falkner-Skan, Pohlhausen BL Separation).
- * Wave 1 — Agent D implementation grounded in Som, Biswas & Chakraborty (3rd Ed.).
+ * (Two-Layer Flow, Couette-Poiseuille, Slip + Herschel-Bulkley, Falkner-Skan, Pohlhausen BL Separation).
+ * Fluid mechanics viscous and boundary-layer solvers.
  */
 import { fmtNum } from "../core/color_scales.js";
 
@@ -70,7 +70,7 @@ export function mapViscousToScene(family, d, options = {}) {
         };
 
     return {
-      primaryTitle: "Two-Layer Immiscible Channel Flow Field (Ex. 8.2)",
+      primaryTitle: "Two-Layer Immiscible Channel Flow Field",
       secondaryTitle: isShear
         ? "Shear Stress τ(y): Interface Continuity vs. Equal-Slope Jump"
         : "Velocity Profile u(y): Shear Continuity vs. Equal-Slope Trap",
@@ -89,7 +89,7 @@ export function mapViscousToScene(family, d, options = {}) {
           ],
       banner: {
         mainHtml:
-          "<strong>Two-Layer Immiscible Channel (Ex. 8.2):</strong> At liquid interface y = 0, both velocity u and shear stress τ = μ(du/dy) stay continuous across layers.",
+          "<strong>Two-Layer Immiscible Channel:</strong> At liquid interface y = 0, both velocity u and shear stress τ = μ(du/dy) stay continuous across layers.",
         trapHtml:
           "Interface Trap: Matching du₁/dy = du₂/dy creates an unphysical shear jump whenever μ₁ ≠ μ₂; peak speed shifts into the lower-viscosity layer!",
       },
@@ -217,7 +217,7 @@ export function mapViscousToScene(family, d, options = {}) {
           ],
       banner: {
         mainHtml:
-          "<strong>Couette–Poiseuille Competition (Ex. 8.4):</strong> Shear drag from the upper plate (+U) competes with axial pressure gradient P = (-dp/dx)H² / (2μU).",
+          "<strong>Couette–Poiseuille Competition:</strong> Shear drag from the upper plate (+U) competes with axial pressure gradient P = (-dp/dx)H² / (2μU).",
         trapHtml:
           "At P = -1 lower-wall shear τw,0 vanishes; reverse backflow grows until net discharge vanishes completely at P = -3!",
       },
@@ -240,7 +240,7 @@ export function mapViscousToScene(family, d, options = {}) {
         { k: "Regime", v: d.regime },
       ],
       drawerCards: [
-        { k: "Flow Regime (Eq. 8.42)", v: d.regime, tone: d.P < -1 ? "coral" : "accent" },
+        { k: "Flow Regime", v: d.regime, tone: d.P < -1 ? "coral" : "accent" },
         {
           k: "Lower Wall Shear τw,0",
           v: `${fmtNum(d.tau_lower_wall, 4)} Pa (Reverses for P < -1)`,
@@ -251,7 +251,7 @@ export function mapViscousToScene(family, d, options = {}) {
           v: `${fmtNum(d.tau_upper_wall, 4)} Pa (Couette ref = ${fmtNum(tauCouetteConst, 4)} Pa)`,
         },
         {
-          k: "Recirculation Check (Ex. 8.4)",
+          k: "Recirculation Check",
           v: d.zero_net_flux
             ? "P = -3: Net Q = 0.000 Exact Cancellation"
             : `Net Q = 0 at P = -3 (u_avg = ${fmtNum(d.u_avg, 3)} m/s)`,
@@ -376,7 +376,7 @@ export function mapViscousToScene(family, d, options = {}) {
           ],
       banner: {
         mainHtml:
-          "<strong>Non-Newtonian Yield Core &amp; Navier Slip (Ch. 1.6):</strong> Wherever |τ| ≤ τ_y near center, fluid travels as a rigid solid plug while Navier wall slip adds nonzero wall speed u_w.",
+          "<strong>Non-Newtonian Yield Core &amp; Navier Slip:</strong> Wherever |τ| ≤ τ_y near center, fluid travels as a rigid solid plug while Navier wall slip adds nonzero wall speed u_w.",
         trapHtml:
           "Standard No-Slip Newtonian Poiseuille underpredicts slip enhancement OR misses complete yield-stress flow locking!",
       },
@@ -539,7 +539,7 @@ export function mapViscousToScene(family, d, options = {}) {
     : {
         mainHtml: d.has_backflow
           ? "<strong>Flow Reversal Active (Λ < -12):</strong> Adverse dp/dx > 0 reverses near-wall fluid backward (u < 0), detaching the boundary layer."
-          : "<strong>Adverse Pressure Inflection (Eq. 9.41–9.42):</strong> Positive wall curvature bends the velocity profile into an S-curve with an interior inflection height.",
+          : "<strong>Adverse Pressure Inflection:</strong> Positive wall curvature bends the velocity profile into an S-curve with an interior inflection height.",
         trapHtml:
           "Inviscid potential flow misses separation completely and predicts zero pressure drag (D'Alembert's Paradox — see Cylinder Cp(θ) toggle)!",
       };
@@ -573,24 +573,24 @@ export function mapViscousToScene(family, d, options = {}) {
           tone: d.near_separation ? "coral" : "accent",
         },
         {
-          k: "Wall Curvature (Eq. 9.42)",
+          k: "Wall Curvature",
           v: `d²u/dη²(0) = ${fmtNum(curv0, 3)} (${d.adverse_gradient ? "> 0 ⇒ adverse dp/dx > 0" : "≤ 0 ⇒ favorable/zero"})`,
           tone: d.adverse_gradient ? "coral" : "",
         },
         {
-          k: "Inflection Point (Fig. 9.6)",
+          k: "Inflection Point",
           v: hasInflection ? `Located at η_PI = ${fmtNum(d.inflection_eta, 2)}` : "None (Favorable or zero gradient)",
           tone: hasInflection ? "amber" : "",
         },
       ]
     : [
         {
-          k: "Separation Criterion (Eq. 9.41)",
+          k: "Separation Criterion",
           v: d.separated ? "Separated (∂u/∂y|w ≤ 0)" : "Attached (∂u/∂y|w > 0)",
           tone: d.separated ? "coral" : "accent",
         },
         {
-          k: "Wall Curvature (Eq. 9.42)",
+          k: "Wall Curvature",
           v: `∂²u/∂y²|w = ${fmtNum(d.wall_curvature_dimless, 2)} (${d.lambda_pg < 0 ? "dp/dx > 0 ⇒ Inflection forced" : "Favorable dp/dx"})`,
           tone: d.lambda_pg < 0 ? "amber" : "",
         },
@@ -599,7 +599,7 @@ export function mapViscousToScene(family, d, options = {}) {
           v: hasInflection ? `y_PI / δ = ${fmtNum(d.inflection_eta, 2)}` : "None (Λ ≥ 0)",
         },
         {
-          k: "D'Alembert Drag Trap (Fig. 9.5)",
+          k: "D'Alembert Drag Trap",
           v: cylCp
             ? `Potential Cd_p = ${fmtNum(cylCp.cd_pressure_ideal, 2)} vs. Separated Wake Cd_p ≈ ${fmtNum(cylCp.cd_pressure_separated, 2)} (θ_sep ≈ ${fmtNum(cylCp.sep_angle_deg, 0)}°)`
             : "Switch to Cylinder Cp(θ) view to compare ideal vs. separated pressure recovery",
@@ -624,7 +624,7 @@ export function mapViscousToScene(family, d, options = {}) {
         ...(cylCp
           ? [
               {
-                k: "Cylinder Fig. 9.5 Reference",
+                k: "Cylinder Pressure Drag Reference",
                 v: `Separated Cd_p = ${fmtNum(cylCp.cd_pressure_separated, 2)} vs Potential Cd_p = ${fmtNum(cylCp.cd_pressure_ideal, 2)} at θ_sep = ${fmtNum(cylCp.sep_angle_deg, 0)}°`,
               },
             ]
@@ -632,7 +632,7 @@ export function mapViscousToScene(family, d, options = {}) {
       ]
     : [
         {
-          k: "Wall Compatibility Condition (Eq. 9.42)",
+          k: "Wall Compatibility Condition",
           tex: String.raw`\left.\mu\frac{\partial^2 u}{\partial y^2}\right|_w = \frac{dp}{dx}, \qquad \Lambda = -\frac{\delta^2}{\mu U}\frac{dp}{dx}`,
         },
         {
@@ -640,7 +640,7 @@ export function mapViscousToScene(family, d, options = {}) {
           v: `du/dη|w = 2 + Λ/6 = ${fmtNum(tw, 3)} | Backflow active: ${d.has_backflow ? "Yes (u < 0)" : "No"}`,
         },
         {
-          k: "Fig. 9.5 Pressure Drag Integral",
+          k: "Pressure Drag Integral",
           tex: String.raw`C_{d,p} = \int_0^\pi C_p(\theta)\cos\theta\,d\theta`,
         },
       ];

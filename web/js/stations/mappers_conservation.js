@@ -1,7 +1,7 @@
 /**
  * Conservation Traps & 2D D2Q9 LBM Tunnel Scene Mappers
- * (Hydraulic Jump Ch. 12.4, Sudden Expansion Ch. 11.5, Accelerating/Free-Fall Tank Ch. 2.9, 2D LBM Tunnel).
- * Wave 1 — Agent D implementation with Fs(h), pipe EGL/HGL, vertical g_eff/az vector fix & fmtNum.
+ * (Hydraulic Jump, Sudden Expansion, Accelerating/Free-Fall Tank, 2D LBM Tunnel).
+ * Flow telemetry with Fs(h), pipe EGL/HGL, vertical g_eff/az vector & fmtNum.
  */
 import { fmtNum } from "../core/color_scales.js";
 
@@ -388,7 +388,7 @@ export function mapConservationToScene(family, d, options = {}) {
           ],
       banner: {
         mainHtml:
-          "<strong>Hydraulic Jump Momentum Balance (Ch. 12.4):</strong> Supercritical flow h₁ jumps through a turbulent surface roller to subcritical conjugate depth h₂ while conserving Specific Force Fs.",
+          "<strong>Hydraulic Jump Momentum Balance:</strong> Supercritical flow h₁ jumps through a turbulent surface roller to subcritical conjugate depth h₂ while conserving Specific Force Fs.",
         trapHtml:
           "Bernoulli Trap: Constant Specific Energy Es₁ = Es₂ ignores irreversible roller loss hj and overpredicts conjugate depth h₂!",
       },
@@ -403,7 +403,7 @@ export function mapConservationToScene(family, d, options = {}) {
       ],
       drawerCards: [
         {
-          k: "Conjugate Depth h₂ (Eq. 12.46)",
+          k: "Conjugate Depth h₂",
           v: `${fmtNum(d.h2_true, 3)} m (Jump Δh = ${fmtNum(d.jump_height, 3)} m, Fr₂ = ${fmtNum(d.Fr2, 2)})`,
           tone: "accent",
         },
@@ -418,7 +418,7 @@ export function mapConservationToScene(family, d, options = {}) {
           tone: "ok",
         },
         {
-          k: "Roller Dissipation (Eq. 12.48)",
+          k: "Roller Dissipation",
           v: `hj = ${fmtNum(d.head_loss_hj, 3)} m | Power = ${fmtNum(d.power_loss_W / 1000, 2)} kW`,
           tone: "amber",
         },
@@ -514,7 +514,7 @@ export function mapConservationToScene(family, d, options = {}) {
           ],
       banner: {
         mainHtml:
-          "<strong>Borda–Carnot Pipe Expansion (Eq. 11.18):</strong> Fast upstream jet V₁ expands into downstream pipe V₂ while corner annular eddies hold shoulder pressure p' ≈ p₁.",
+          "<strong>Borda–Carnot Pipe Expansion:</strong> Fast upstream jet V₁ expands into downstream pipe V₂ while corner annular eddies hold shoulder pressure p' ≈ p₁.",
         trapHtml:
           "Ideal Bernoulli predicts ½ρ(V₁² - V₂²), missing Borda eddy loss hL = (V₁ - V₂)² / (2g)!",
       },
@@ -529,7 +529,7 @@ export function mapConservationToScene(family, d, options = {}) {
       ],
       drawerCards: [
         {
-          k: "Momentum Pressure Recovery (Eq. 11.21)",
+          k: "Momentum Pressure Recovery",
           v: `ρV₂(V₁ - V₂) = ${fmtNum(d.dp_true / 1000, 2)} kPa`,
           tone: "accent",
         },
@@ -539,7 +539,7 @@ export function mapConservationToScene(family, d, options = {}) {
           tone: "coral",
         },
         {
-          k: "Borda–Carnot Head Loss (Eq. 11.23)",
+          k: "Borda–Carnot Head Loss",
           v: `hL = (V₁ - V₂)²/(2g) = ${fmtNum(d.head_loss_hL, 3)} m`,
           tone: "amber",
         },
@@ -581,8 +581,8 @@ export function mapConservationToScene(family, d, options = {}) {
       ],
       banner: {
         mainHtml: isFreeFall
-          ? "<strong>Free-Fall Hydrostatic Collapse (p. 99):</strong> When tank acceleration reaches az = -g, g_eff vanishes ⇒ gauge pressure drops to zero everywhere and bottom orifice DOES NOT LEAK!"
-          : "<strong>Non-Inertial Tank Hydrostatics (Eq. 2.86):</strong> Constant-pressure isobars tilt normal to g_eff = (g + az)ẑ - ax x̂, altering base pressure and orifice exit speed.",
+          ? "<strong>Free-Fall Hydrostatic Collapse:</strong> When tank acceleration reaches az = -g, g_eff vanishes ⇒ gauge pressure drops to zero everywhere and bottom orifice DOES NOT LEAK!"
+          : "<strong>Non-Inertial Tank Hydrostatics:</strong> Constant-pressure isobars tilt normal to g_eff = (g + az)ẑ - ax x̂, altering base pressure and orifice exit speed.",
         trapHtml:
           "Torricelli Trap: Blindly applying √(2gh₀) misses weightlessness in free fall (V_exit = 0.00 m/s) or over/underpredicts efflux under az / tilt!",
       },
@@ -607,7 +607,7 @@ export function mapConservationToScene(family, d, options = {}) {
       ],
       drawerCards: [
         {
-          k: "Active Regime (Eq. 2.86)",
+          k: "Active Regime",
           v: String(d.regime || "").replaceAll("_", " "),
           tone: isFreeFall ? "coral" : "amber",
         },
@@ -617,7 +617,7 @@ export function mapConservationToScene(family, d, options = {}) {
           tone: isFreeFall ? "coral" : "",
         },
         {
-          k: "Free-Surface Slope (Eq. 2.87)",
+          k: "Free-Surface Slope",
           v: isFreeFall ? "Weightless surface stays flat (θ = 0.00°)" : `tan θ = -ax/(g + az) ⇒ θ = ${fmtNum(d.tilt_deg, 2)}°`,
         },
         {
@@ -676,7 +676,7 @@ export function mapConservationToScene(family, d, options = {}) {
       : [{ label: "Wake uy(t)/Uin", color: "primary" }],
     banner: {
       mainHtml:
-        "<strong>Live 2D D2Q9 Lattice–Boltzmann Wind Tunnel (Ch. 10):</strong> Solves viscous Navier–Stokes vortex shedding directly around true 1:1 bounce-back obstacle masks.",
+        "<strong>Live 2D D2Q9 Lattice–Boltzmann Wind Tunnel:</strong> Solves viscous Navier–Stokes vortex shedding directly around true 1:1 bounce-back obstacle masks.",
       trapHtml:
         "Insert a wake splitter behind a bluff body — or draw your own cylinder + splitter — to see alternating Kármán shedding vanish!",
       trapTone: "insight",

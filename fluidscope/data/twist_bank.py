@@ -1,4 +1,4 @@
-"""12 Curated Som, Biswas & Chakraborty Concept-Twist Problems for Station 05."""
+"""12 Curated Fluid Mechanics Concept-Twist Problems for Station 05."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-01",
         "title": "Unsteady Divergence: Streamline vs. Pathline vs. Streakline",
-        "book_ref": "Ch. 3.3.3, Example 3.10 (p. 135–137)",
+        "book_ref": "Unsteady Flow Lines (Streamline vs. Pathline)",
         "prompt": "For unsteady flow u = x / (t + t0), v = v0, dye is continuously injected at (x0, y0) starting at t = t0. At t = 2t0, how do the instantaneous streamline, pathline from t0, and visible dye streakline compare?",
         "tempting_shortcut": "Assuming particle trajectories and dye streaklines stay tangent to the t = 2t0 streamline.",
         "question": "Which curve shape matches the visible streakline at t = 2t0 vs. the pathline?",
@@ -26,7 +26,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-02",
         "title": "Free Vortex Right-Angled Bend: Radial Pressure & Normal Accel",
-        "book_ref": "Ch. 4.5, Example 4.7 (p. 206–208)",
+        "book_ref": "Free Vortex Bend Radial Pressure",
         "prompt": "Water flows in a horizontal 2D concentric bend (r1 = 0.15 m, r2 = 0.45 m) as a free vortex (centerline velocity 3 m/s). Can Bernoulli be applied directly between the inner and outer walls?",
         "tempting_shortcut": "Refusing Bernoulli between distinct streamlines because velocity changes with radius.",
         "question": "Why does Bernoulli match radial Euler between r1 and r2 here?",
@@ -46,7 +46,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-03",
         "title": "Forced Vortex Bernoulli Sign Reversal Trap",
-        "book_ref": "Ch. 4.5, Eq. (4.43), (4.56)–(4.60) (p. 204–208)",
+        "book_ref": "Forced Vortex Radial Pressure Equilibrium",
         "prompt": "Fluid rotates inside a cylindrical impeller as a forced vortex vθ = ωr (ω = 10 rad/s) between r1 = 0.1 m and r2 = 0.4 m. A student plugs both speeds into constant-head Bernoulli: p1 + ½ρ(ωr1)² = p2 + ½ρ(ωr2)².",
         "tempting_shortcut": "Using p2 - p1 = ½ρ(v1² - v2²) = -½ρω²(r2² - r1²).",
         "question": "What happens to the naive Bernoulli pressure difference Δp compared to true radial Euler?",
@@ -66,7 +66,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-04",
         "title": "Rotating Open Tank Spill & Base Uncovering",
-        "book_ref": "Ch. 4.5, Example 4.8 (p. 208–209)",
+        "book_ref": "Open Rotating Paraboloid Rim Overflow",
         "prompt": "An open cylinder (D = 0.6 m, H = 0.503 m) just uncovers its center bottom at 100 rpm. Speed is raised to 130 rpm. What uncovers at the base?",
         "tempting_shortcut": "Assuming water volume stays conserved inside the cylinder without overflowing first.",
         "question": "Which governing balance fixes the uncovered radius R1 at 130 rpm?",
@@ -86,7 +86,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-05",
         "title": "Rankine Combined Vortex Double Head Depression",
-        "book_ref": "Ch. 4.5.1.1 & Hydrostatic Vortex Matching",
+        "book_ref": "Rankine Compound Vortex Core Matching",
         "prompt": "A Rankine tornado vortex has rigid core radius Rc with peak swirl v_max = ωRc, stitched to a free outer vortex r > Rc. How deep is the total surface dip at r = 0 below far-field z_∞?",
         "tempting_shortcut": "Using single dynamic head ½ v_max² / g from far-field Bernoulli.",
         "question": "What is the exact total surface depression Δz from r → ∞ to r = 0?",
@@ -106,7 +106,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-06",
         "title": "Free-Falling Perforated Tank No-Leak Trap",
-        "book_ref": "Ch. 2.9, Eq. (2.86)–(2.88) (p. 97–99)",
+        "book_ref": "Non-Inertial Free-Fall Tank Hydrostatics",
         "prompt": "An open rectangular tank filled to depth h = 0.5 m has a small hole in its bottom and is released into free fall (az = -g).",
         "tempting_shortcut": "Applying Torricelli efflux v_exit = √(2gh) to compute tank draining rate.",
         "question": "What happens at the bottom hole during free fall?",
@@ -126,7 +126,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-07",
         "title": "Two-Layer Immiscible Channel Slope Kink",
-        "book_ref": "Ch. 8.3, Example 8.2 (p. 404–407)",
+        "book_ref": "Two-Layer Immiscible Interface Shear Continuity",
         "prompt": "Two immiscible liquids (μ1 = 5 mPa·s below y=0, μ2 = 1 mPa·s above y=0) flow steadily between fixed parallel plates y = ±H under constant dp/dx.",
         "tempting_shortcut": "Matching du1/dy = du2/dy at y = 0 or assuming peak velocity occurs at geometric center y = 0.",
         "question": "Which condition actually governs the liquid-liquid interface y = 0?",
@@ -146,7 +146,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-08",
         "title": "Couette-Poiseuille Zero-Net-Flux Recirculation",
-        "book_ref": "Ch. 8.3, Eq. (8.41)–(8.42), Ex 8.4 (p. 410–413)",
+        "book_ref": "Generalized Couette-Poiseuille Backflow",
         "prompt": "Upper plate moves at +U above a stationary wall while an opposing adverse pressure gradient P = (H²/2μU)(-dp*/dx) acts against the flow.",
         "tempting_shortcut": "Assuming net flow Q = 0 occurs right when stationary wall shear vanishes (P = -1).",
         "question": "At what value of P does net discharge Q vanish completely (pure recirculation)?",
@@ -166,7 +166,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-09",
         "title": "Boundary-Layer Inflection vs. Separation Criterion",
-        "book_ref": "Ch. 9.6, Eq. (9.41)–(9.42), Fig. 9.5–9.6 (p. 462–466)",
+        "book_ref": "Boundary Layer Separation & Adverse Pressure",
         "prompt": "Flow moves past a curved bluff surface against an adverse pressure gradient (dp/dx > 0). Students often confuse wall curvature ∂²u/∂y²|w with separation.",
         "tempting_shortcut": "Setting ∂²u/∂y²|w = 0 as the separation point, or using ideal cylinder Cp = 1 - 4sin²θ to predict drag.",
         "question": "What exact mathematics governs onset of separation?",
@@ -186,7 +186,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-10",
         "title": "Hydrophobic Slip + Herschel-Bulkley Yield Plug",
-        "book_ref": "Ch. 1.6 (p. 24) & Navier Wall-Slip Channel",
+        "book_ref": "Hydrophobic Slit Navier Slip & Yield Fluid",
         "prompt": "A shear-thinning yield-stress paste (τ_y = 2.5 Pa, n = 0.65) flows through a hydrophobic slit with Navier slip length ls = 0.25 mm.",
         "tempting_shortcut": "Using no-slip Newtonian Hagen-Poiseuille Q ∝ (-dp/dx) with apparent wall viscosity.",
         "question": "Which dual distortion separates true flow from the textbook Poiseuille curve?",
@@ -206,7 +206,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-11",
         "title": "Borda-Carnot Sudden Pipe Expansion Pressure Trap",
-        "book_ref": "Ch. 11.5, Eq. (11.18)–(11.23) (p. 539–540)",
+        "book_ref": "Borda-Carnot Sudden Pipe Expansion Momentum",
         "prompt": "Water exits a D1 = 0.10 m pipe at V1 = 4 m/s abruptly into a D2 = 0.20 m pipe. Predict downstream static pressure recovery p2 - p1.",
         "tempting_shortcut": "Applying ideal Bernoulli p2 - p1 = ½ρ(V1² - V2²) = 7.5 kPa.",
         "question": "Why does measured Δp equal only 3.0 kPa instead of 7.5 kPa?",
@@ -226,7 +226,7 @@ TWIST_PROBLEMS: list[dict] = [
     {
         "id": "TWIST-12",
         "title": "Sluice-Gate Hydraulic Jump Energy vs. Momentum",
-        "book_ref": "Ch. 12.4, Examples 12.11–12.12 (p. 601–605)",
+        "book_ref": "Hydraulic Jump Specific Force & Roller Dissipation",
         "prompt": "A 6.1 m wide rectangular apron carries 11.32 m³/s at V1 = 6.1 m/s (Fr1 = 3.53) and undergoes a hydraulic jump.",
         "tempting_shortcut": "Solving Es(h2) = Es(h1) (constant specific energy / Bernoulli) for subcritical depth h2.",
         "question": "Why does constant-energy Bernoulli overpredict h2 here?",

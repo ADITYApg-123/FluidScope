@@ -1,6 +1,6 @@
 # FluidScope AI — Aerospace Fluid Mechanics Concept-Twist Workbench
 
-**FluidScope AI** is a neuro-symbolic Fluid Mechanics workbench and interactive 60fps flow telemetry bench inspired by Prof. Suman Chakraborty, S. K. Som & G. Biswas's *Introduction to Fluid Mechanics and Fluid Machines* (3rd Edition, Tata McGraw-Hill).
+**FluidScope AI** is a neuro-symbolic Fluid Mechanics workbench and interactive 60fps flow telemetry bench for aerospace and mechanical engineering.
 
 Instead of passively solving toy problems or generating hallucinated diagrams from an LLM, FluidScope enforces a strict **Neuro-Symbolic Architecture**:
 
@@ -52,7 +52,7 @@ To enable optional LLM translation and dialogue coaching:
 
 ---
 
-## Verification & Textbook Benchmark Suite
+## Verification & Analytical Benchmark Suite
 
 Run the full automated verification suite (`pytest`):
 
@@ -60,9 +60,9 @@ Run the full automated verification suite (`pytest`):
 pytest -v
 ```
 
-Includes quantitative assertions against *Som, Biswas & Chakraborty* worked examples and exact governing limits:
-- **Ex. 3.10:** Unsteady field exponential streamline, linear pathline, and hyperbolic streakline separation + Stokes circulation theorem.
-- **Ex. 4.7–4.8:** Free-vortex bend radial Euler match ($\Delta p = 16\,\text{kPa}$) vs. Forced-vortex Bernoulli sign reversal + Rotating vessel base uncovering ($\pi R_1^2 \approx 0.116\,\text{m}^2$ at `130 rpm`).
-- **Ch. 8–9:** Blasius skin friction ($C_f\sqrt{Re_x} = 0.6641$), Falkner–Skan separation limit ($\beta \to -0.1988$), Couette–Poiseuille $Q=0$ at $P=-3$, Two-layer shear continuity kink (`Ex. 8.2`), and Navier slip / Herschel–Bulkley analytical flux.
-- **Ch. 2.9, 10, 11.5, 12.4:** Hydraulic jump (`Ex. 12.11–12.12`), Borda–Carnot expansion, free-fall zero-efflux trap, and Numba D2Q9 Poiseuille & Kármán wake splitter-plate damping.
+Includes quantitative assertions against analytical fluid mechanics benchmarks and exact governing limits:
+- **Kinematics:** Unsteady field exponential streamline, linear pathline, and hyperbolic streakline separation + Stokes circulation theorem.
+- **Vortex Dynamics:** Free-vortex bend radial Euler match ($\Delta p = 16\,\text{kPa}$) vs. Forced-vortex Bernoulli sign reversal + Rotating vessel base uncovering ($\pi R_1^2 \approx 0.116\,\text{m}^2$ at `130 rpm`).
+- **Viscous & Boundary Layer:** Blasius skin friction ($C_f\sqrt{Re_x} = 0.6641$), Falkner–Skan separation limit ($\beta \to -0.1988$), Couette–Poiseuille $Q=0$ at $P=-3$, Two-layer shear continuity kink, and Navier slip / Herschel–Bulkley analytical flux.
+- **Conservation & CFD:** Hydraulic jump momentum conservation, Borda–Carnot expansion, free-fall zero-efflux trap, and Numba D2Q9 Poiseuille & Kármán wake splitter-plate damping.
 - **API & End-to-End Integration:** All 12 Twist Bank problems, all 13 `ParsedPhysicsQuery` prompt families + honest 3D rejection, static web bundle serving, and grounded doubt-coach endpoints.
