@@ -1,6 +1,10 @@
 /**
  * Omnipresent Slide-Over Doubt Coach Drawer (#coachDrawerHost).
  * Grounded strictly to active solver residuals across Labs 2A-4D, AI Translator, and post-submit Quiz 05.
+ * Kinematics Visualization: 3-panel layout —
+ *   Panel A: Dense particle field (Eulerian view, earth.nullschool style)
+ *   Panel D: Lagrangian tracker (single glowing particle + live readout)
+ *   Panel below: Trajectory comparison x(y) chart (streamline / pathline / streakline)
  */
 import { ROCKER_DEFS, bus, loadLLMConfig, state } from "../core/store.js";
 import { formatInlineRichText, formatRichText } from "../math_ui.js";
@@ -324,6 +328,566 @@ async function defaultApiPost(url, payload) {
   return json.data;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Kinematics 3-Panel Animated Visualizer
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Build and return a self-contained 3-panel kinematics visualization element.
+ * Returns { el, destroy } — call destroy() to cancel all RAF loops.
+ *
+ * Layout:
+ *   ┌──────────────────┬──────────────────┐
+ *   │  Panel A         │  Panel D         │
+ *   │  Dense particle  │  Lagrangian      │
+ *   │  field (Euler.)  │  tracker         │
+ *   └──────────────────┴──────────────────┘
+ *   ┌─────────────────────────────────────┐
+ *   │  Trajectory x(y) comparison chart   │
+ *   └─────────────────────────────────────┘
+ */
+function buildKinematicsViz(d) {
+  if (!d?.field?.U || !d?.field?.xs || !d?.curves) return null;
+
+  const field  = d.field;
+  const curves = d.curves;
+  const probe  = d.point_probe || {};
+  const [xmin, xmax, ymin, ymax] = field.bounds;
+  const xs = field.xs;
+  const ys = field.ys;
+  const U  = field.U;   // [row][col] row=y, col=x
+  const V  = field.V;
+
+  const nx = xs.length;
+  const ny = ys.length;
+
+  // ── Bilinear interpolation of U/V ─────────────────────────────────────────
+  function sampleUV(wx, wy) {
+    if (wx < xmin || wx > xmax || wy < ymin || wy > ymax) return null;
+    const tx = (wx - xmin) / (xmax - xmin) * (nx - 1);
+    const ty = (wy - ymin) / (ymax - ymin) * (ny - 1);
+    const ix = Math.max(0, Math.min(nx - 2, Math.floor(tx)));
+    const iy = Math.max(0, Math.min(ny - 2, Math.floor(ty)));
+    const fx = tx - ix;
+    const fy = ty - iy;
+
+    function blerp(A) {
+      const r0 = A[iy]?.[ix];
+      const r1 = A[iy]?.[ix + 1];
+      const r2 = A[iy + 1]?.[ix];
+      const r3 = A[iy + 1]?.[ix + 1];
+      if (r0 == null || r1 == null || r2 == null || r3 == null) return null;
+      return (r0 * (1 - fx) + r1 * fx) * (1 - fy) + (r2 * (1 - fx) + r3 * fx) * fy;
+    }
+
+    const u = blerp(U);
+    const v = blerp(V);
+    if (u == null || v == null) return null;
+    return { u, v, speed: Math.hypot(u, v) };
+  }
+
+  // ── World → canvas coordinate mappers ─────────────────────────────────────
+  function makeMapper(canvas, padL = 0, padR = 0, padT = 0, padB = 0) {
+    return function(wx, wy) {
+      const W = canvas.width  - padL - padR;
+      const H = canvas.height - padT - padB;
+      const cx = padL + (wx - xmin) / (xmax - xmin) * W;
+      const cy = padT + (1 - (wy - ymin) / (ymax - ymin)) * H;
+      return [cx, cy];
+    };
+  }
+
+  // ── Speed color: dark-blue (slow) → cyan → white (fast) ───────────────────
+  function speedColor(speed, maxSpeed, alpha = 1) {
+    const t = Math.min(1, speed / (maxSpeed || 1));
+    // dark-indigo → blue-cyan → white
+    const r = Math.round(20  + t * 220);
+    const g = Math.round(40  + t * 200);
+    const b = Math.round(160 + t * 90);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  // Pre-compute max speed from grid
+  let _maxSpeed = 0;
+  for (let r = 0; r < ny; r++) {
+    for (let c = 0; c < nx; c++) {
+      const u = U[r]?.[c], v = V[r]?.[c];
+      if (u != null && v != null) {
+        const spd = Math.hypot(u, v);
+        if (Number.isFinite(spd) && spd < 1e4) _maxSpeed = Math.max(_maxSpeed, spd);
+      }
+    }
+  }
+  const MAX_SPEED = _maxSpeed || 1;
+
+  const rafIds = [];
+  const cleanups = [];
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PANEL A — Dense Eulerian Particle Field
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function initPanelA(canvas) {
+    const ctx2d = canvas.getContext("2d");
+    const N_PARTICLES = 350;
+    const TAIL_LEN    = 18;   // frames of trail
+    const DT          = 0.016; // seconds per frame (60fps)
+
+    function makeParticle() {
+      return {
+        x: xmin + Math.random() * (xmax - xmin),
+        y: ymin + Math.random() * (ymax - ymin),
+        trail: [],   // [{x,y,speed}]
+        age: Math.random() * 100,
+      };
+    }
+
+    const particles = Array.from({ length: N_PARTICLES }, makeParticle);
+
+    function stepParticle(p) {
+      const sv = sampleUV(p.x, p.y);
+      if (!sv || !Number.isFinite(sv.u) || sv.speed > 1e4) {
+        // reset if out or singular
+        const np = makeParticle();
+        p.x = np.x; p.y = np.y; p.trail = []; p.age = 0;
+        return;
+      }
+      p.trail.push({ x: p.x, y: p.y, speed: sv.speed });
+      if (p.trail.length > TAIL_LEN) p.trail.shift();
+
+      const scale = Math.min(1 / (sv.speed + 0.01), 2.0); // normalize flow speed
+      p.x += sv.u * scale * DT * (xmax - xmin) * 0.5;
+      p.y += sv.v * scale * DT * (ymax - ymin) * 0.5;
+      p.age++;
+
+      if (p.x < xmin || p.x > xmax || p.y < ymin || p.y > ymax || p.age > 180) {
+        const np = makeParticle();
+        p.x = np.x; p.y = np.y; p.trail = []; p.age = 0;
+      }
+    }
+
+    let rafId;
+    function draw() {
+      const W = canvas.clientWidth  || canvas.width;
+      const H = canvas.clientHeight || canvas.height;
+      if (canvas.width !== W || canvas.height !== H) {
+        canvas.width = W; canvas.height = H;
+      }
+      const toC = makeMapper(canvas, 2, 2, 2, 2);
+
+      // Dark gradient background
+      ctx2d.fillStyle = "#0a0e1a";
+      ctx2d.fillRect(0, 0, W, H);
+
+      // Draw particle trails
+      for (const p of particles) {
+        stepParticle(p);
+        const tlen = p.trail.length;
+        if (tlen < 2) continue;
+        for (let i = 1; i < tlen; i++) {
+          const a0 = p.trail[i - 1];
+          const a1 = p.trail[i];
+          const frac = i / tlen;
+          const alpha = frac * 0.75;
+          const col = speedColor(a1.speed, MAX_SPEED, alpha);
+          const [x0, y0] = toC(a0.x, a0.y);
+          const [x1, y1] = toC(a1.x, a1.y);
+          ctx2d.beginPath();
+          ctx2d.strokeStyle = col;
+          ctx2d.lineWidth = 1.2;
+          ctx2d.moveTo(x0, y0);
+          ctx2d.lineTo(x1, y1);
+          ctx2d.stroke();
+        }
+        // Bright head dot
+        const tail = p.trail[tlen - 1];
+        const [hx, hy] = toC(tail.x, tail.y);
+        const col = speedColor(tail.speed, MAX_SPEED, 1.0);
+        ctx2d.beginPath();
+        ctx2d.arc(hx, hy, 1.5, 0, Math.PI * 2);
+        ctx2d.fillStyle = col;
+        ctx2d.fill();
+      }
+
+      // Label
+      ctx2d.font = "bold 10px 'Inter', sans-serif";
+      ctx2d.fillStyle = "rgba(255,255,255,0.45)";
+      ctx2d.fillText("EULERIAN FIELD", 8, 14);
+
+      rafId = requestAnimationFrame(draw);
+    }
+
+    rafId = requestAnimationFrame(draw);
+    rafIds.push(() => cancelAnimationFrame(rafId));
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PANEL D — Lagrangian Particle Tracker
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function initPanelD(canvas, infoEl) {
+    const ctx2d = canvas.getContext("2d");
+    const DT    = 0.025;
+    const MAX_TRAIL = 300;
+    const MAX_STREAK_TAIL = 60;
+
+    // Lagrangian particle starting at seed
+    const seedX = Number.isFinite(probe.x) ? probe.x : (xmin + xmax) / 2;
+    const seedY = Number.isFinite(probe.y) ? probe.y : (ymin + ymax) / 2;
+
+    const pathParticle = {
+      x: seedX, y: seedY,
+      trail: [],  // [{x,y}]
+      done: false,
+    };
+
+    // Streakline: periodically release particles from seed, track tips
+    const streakParticles = [];  // [{x,y,trail:[]}]
+    let streakTimer = 0;
+    const STREAK_INTERVAL = 20; // frames between releases
+
+    // Sim time
+    let simTime = 0;
+
+    function stepLagrangian() {
+      if (pathParticle.done) return;
+      const sv = sampleUV(pathParticle.x, pathParticle.y);
+      if (!sv || sv.speed > 1e4) { pathParticle.done = true; return; }
+      pathParticle.trail.push({ x: pathParticle.x, y: pathParticle.y, speed: sv.speed });
+      if (pathParticle.trail.length > MAX_TRAIL) pathParticle.trail.shift();
+      pathParticle.x += sv.u * DT;
+      pathParticle.y += sv.v * DT;
+      if (pathParticle.x < xmin || pathParticle.x > xmax ||
+          pathParticle.y < ymin || pathParticle.y > ymax) {
+        pathParticle.done = true;
+      }
+      simTime += DT;
+    }
+
+    function stepStreakline() {
+      streakTimer++;
+      if (streakTimer % STREAK_INTERVAL === 0 && streakParticles.length < 50) {
+        streakParticles.push({ x: seedX, y: seedY, trail: [] });
+      }
+      for (const sp of streakParticles) {
+        const sv = sampleUV(sp.x, sp.y);
+        if (!sv || sv.speed > 1e4) continue;
+        sp.trail.push({ x: sp.x, y: sp.y });
+        if (sp.trail.length > MAX_STREAK_TAIL) sp.trail.shift();
+        sp.x += sv.u * DT;
+        sp.y += sv.v * DT;
+      }
+    }
+
+    let rafId;
+    function draw() {
+      const W = canvas.clientWidth  || canvas.width;
+      const H = canvas.clientHeight || canvas.height;
+      if (canvas.width !== W || canvas.height !== H) {
+        canvas.width = W; canvas.height = H;
+      }
+      const toC = makeMapper(canvas, 2, 2, 2, 2);
+
+      ctx2d.fillStyle = "#080d18";
+      ctx2d.fillRect(0, 0, W, H);
+
+      stepLagrangian();
+      stepStreakline();
+
+      // Draw pathline trail (blue-white gradient)
+      const trail = pathParticle.trail;
+      for (let i = 1; i < trail.length; i++) {
+        const frac = i / trail.length;
+        const alpha = frac * 0.9;
+        const [x0, y0] = toC(trail[i - 1].x, trail[i - 1].y);
+        const [x1, y1] = toC(trail[i].x,     trail[i].y);
+        ctx2d.beginPath();
+        ctx2d.strokeStyle = `rgba(80,160,255,${alpha})`;
+        ctx2d.lineWidth = 2;
+        ctx2d.moveTo(x0, y0);
+        ctx2d.lineTo(x1, y1);
+        ctx2d.stroke();
+      }
+
+      // Draw streakline particles (orange trails)
+      for (const sp of streakParticles) {
+        for (let i = 1; i < sp.trail.length; i++) {
+          const frac = i / sp.trail.length;
+          const [x0, y0] = toC(sp.trail[i - 1].x, sp.trail[i - 1].y);
+          const [x1, y1] = toC(sp.trail[i].x,     sp.trail[i].y);
+          ctx2d.beginPath();
+          ctx2d.strokeStyle = `rgba(255,160,60,${frac * 0.6})`;
+          ctx2d.lineWidth = 1.5;
+          ctx2d.moveTo(x0, y0);
+          ctx2d.lineTo(x1, y1);
+          ctx2d.stroke();
+        }
+        // tip dot
+        const [tx, ty] = toC(sp.x, sp.y);
+        ctx2d.beginPath();
+        ctx2d.arc(tx, ty, 1.8, 0, Math.PI * 2);
+        ctx2d.fillStyle = "rgba(255,180,80,0.9)";
+        ctx2d.fill();
+      }
+
+      // Seed point marker
+      const [sx, sy] = toC(seedX, seedY);
+      ctx2d.beginPath();
+      ctx2d.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx2d.fillStyle = "rgba(255,255,255,0.15)";
+      ctx2d.fill();
+      ctx2d.beginPath();
+      ctx2d.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx2d.strokeStyle = "rgba(255,255,255,0.8)";
+      ctx2d.lineWidth = 1.5;
+      ctx2d.stroke();
+
+      // Lagrangian particle glow
+      if (!pathParticle.done) {
+        const [px, py] = toC(pathParticle.x, pathParticle.y);
+        const grd = ctx2d.createRadialGradient(px, py, 0, px, py, 10);
+        grd.addColorStop(0, "rgba(100,200,255,0.9)");
+        grd.addColorStop(1, "rgba(100,200,255,0)");
+        ctx2d.beginPath();
+        ctx2d.arc(px, py, 10, 0, Math.PI * 2);
+        ctx2d.fillStyle = grd;
+        ctx2d.fill();
+        ctx2d.beginPath();
+        ctx2d.arc(px, py, 3, 0, Math.PI * 2);
+        ctx2d.fillStyle = "#fff";
+        ctx2d.fill();
+      }
+
+      // Label
+      ctx2d.font = "bold 10px 'Inter', sans-serif";
+      ctx2d.fillStyle = "rgba(255,255,255,0.45)";
+      ctx2d.fillText("LAGRANGIAN TRACKER", 8, 14);
+
+      // Update live info card
+      if (infoEl) {
+        const sv = sampleUV(pathParticle.x, pathParticle.y);
+        const spd = sv ? sv.speed.toFixed(3) : "—";
+        const px = pathParticle.done ? "out" : pathParticle.x.toFixed(3);
+        const py2 = pathParticle.done ? "out" : pathParticle.y.toFixed(3);
+        infoEl.innerHTML = `
+          <span style="color:#50a0ff">● Pathline</span> &nbsp;
+          <span style="color:#ffa040">● Streakline</span>
+          <br><span style="opacity:0.65;font-size:10px">
+            x: ${px} &nbsp; y: ${py2} &nbsp; |V|: ${spd}
+            &nbsp; t: ${simTime.toFixed(2)}s
+          </span>`;
+      }
+
+      rafId = requestAnimationFrame(draw);
+    }
+
+    rafId = requestAnimationFrame(draw);
+    rafIds.push(() => cancelAnimationFrame(rafId));
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PANEL C — Trajectory x(y) Comparison Chart (static SVG/canvas)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function drawTrajectoryChart(canvas) {
+    const ctx2d = canvas.getContext("2d");
+    const W = canvas.width;
+    const H = canvas.height;
+    const pad = { l: 44, r: 14, t: 20, b: 36 };
+
+    const sl = curves.streamline  || [];
+    const pl = curves.pathline    || [];
+    const sk = curves.streakline  || [];
+
+    // find data bounds
+    const allPts = [...sl, ...pl, ...sk].filter(p => p && p[0] != null && p[1] != null);
+    if (allPts.length === 0) {
+      ctx2d.fillStyle = "#111";
+      ctx2d.fillRect(0, 0, W, H);
+      ctx2d.fillStyle = "#888";
+      ctx2d.font = "12px Inter";
+      ctx2d.fillText("No trajectory data", 20, H / 2);
+      return;
+    }
+
+    const dxs = allPts.map(p => p[0]);
+    const dys = allPts.map(p => p[1]);
+    let dxMin = Math.min(...dxs), dxMax = Math.max(...dxs);
+    let dyMin = Math.min(...dys), dyMax = Math.max(...dys);
+    const dxr = dxMax - dxMin || 1;
+    const dyr = dyMax - dyMin || 1;
+    dxMin -= dxr * 0.05; dxMax += dxr * 0.05;
+    dyMin -= dyr * 0.05; dyMax += dyr * 0.05;
+
+    function toCh(wx, wy) {
+      return [
+        pad.l + (wx - dxMin) / (dxMax - dxMin) * (W - pad.l - pad.r),
+        pad.t + (1 - (wy - dyMin) / (dyMax - dyMin)) * (H - pad.t - pad.b),
+      ];
+    }
+
+    ctx2d.fillStyle = "#0d1117";
+    ctx2d.fillRect(0, 0, W, H);
+
+    // Grid lines
+    ctx2d.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx2d.lineWidth = 0.5;
+    for (let i = 0; i <= 5; i++) {
+      const x = pad.l + (i / 5) * (W - pad.l - pad.r);
+      const y = pad.t + (i / 5) * (H - pad.t - pad.b);
+      ctx2d.beginPath(); ctx2d.moveTo(x, pad.t); ctx2d.lineTo(x, H - pad.b); ctx2d.stroke();
+      ctx2d.beginPath(); ctx2d.moveTo(pad.l, y); ctx2d.lineTo(W - pad.r, y); ctx2d.stroke();
+    }
+
+    // Axes
+    ctx2d.strokeStyle = "rgba(255,255,255,0.3)";
+    ctx2d.lineWidth = 1;
+    ctx2d.beginPath();
+    ctx2d.moveTo(pad.l, pad.t); ctx2d.lineTo(pad.l, H - pad.b); ctx2d.lineTo(W - pad.r, H - pad.b);
+    ctx2d.stroke();
+
+    // Axis labels
+    ctx2d.font = "10px 'Inter', sans-serif";
+    ctx2d.fillStyle = "rgba(255,255,255,0.45)";
+    ctx2d.textAlign = "center";
+    ctx2d.fillText("x (m)", W / 2, H - 4);
+    ctx2d.save();
+    ctx2d.translate(12, H / 2);
+    ctx2d.rotate(-Math.PI / 2);
+    ctx2d.fillText("y (m)", 0, 0);
+    ctx2d.restore();
+    ctx2d.textAlign = "left";
+
+    // Tick labels
+    ctx2d.font = "9px 'Inter', sans-serif";
+    ctx2d.fillStyle = "rgba(255,255,255,0.4)";
+    for (let i = 0; i <= 4; i++) {
+      const wx = dxMin + (i / 4) * (dxMax - dxMin);
+      const wy = dyMin + (i / 4) * (dyMax - dyMin);
+      const [cx] = toCh(wx, dyMin);
+      const [, cy] = toCh(dxMin, wy);
+      ctx2d.fillText(wx.toFixed(1), cx - 8, H - pad.b + 12);
+      ctx2d.fillText(wy.toFixed(1), 2, cy + 3);
+    }
+
+    // Draw curves
+    function drawCurve(pts, color, dash = []) {
+      if (!pts || pts.length < 2) return;
+      ctx2d.beginPath();
+      ctx2d.setLineDash(dash);
+      ctx2d.strokeStyle = color;
+      ctx2d.lineWidth = 2;
+      let first = true;
+      for (const p of pts) {
+        if (!p || p[0] == null || p[1] == null) continue;
+        const [cx, cy] = toCh(p[0], p[1]);
+        if (first) { ctx2d.moveTo(cx, cy); first = false; }
+        else ctx2d.lineTo(cx, cy);
+      }
+      ctx2d.stroke();
+      ctx2d.setLineDash([]);
+    }
+
+    drawCurve(sl, "#4fa8ff");        // streamline — blue
+    drawCurve(pl, "#ff7c3a");        // pathline   — orange
+    drawCurve(sk, "#ffd966", [4,4]); // streakline — yellow dashed
+
+    // Legend
+    const LX = pad.l + 8;
+    const LY = pad.t + 10;
+    ctx2d.font = "9.5px 'Inter', sans-serif";
+    [["Streamline", "#4fa8ff", []], ["Pathline", "#ff7c3a", []], ["Streakline", "#ffd966", [4,4]]].forEach(([label, color, dash], i) => {
+      const lx = LX + i * 90;
+      ctx2d.setLineDash(dash);
+      ctx2d.strokeStyle = color;
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath(); ctx2d.moveTo(lx, LY); ctx2d.lineTo(lx + 20, LY); ctx2d.stroke();
+      ctx2d.setLineDash([]);
+      ctx2d.fillStyle = "rgba(255,255,255,0.75)";
+      ctx2d.fillText(label, lx + 24, LY + 3.5);
+    });
+
+    ctx2d.fillStyle = "rgba(255,255,255,0.4)";
+    ctx2d.font = "bold 10px 'Inter', sans-serif";
+    ctx2d.fillText("TRAJECTORY COMPARISON", pad.l + 8, H - pad.b - 6);
+  }
+
+  // ── Assemble DOM ───────────────────────────────────────────────────────────
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "display:flex;flex-direction:column;gap:6px;margin-top:10px;";
+
+  // Top row: Panel A + Panel D
+  const topRow = document.createElement("div");
+  topRow.style.cssText = "display:flex;gap:6px;height:220px;";
+
+  // Panel A wrapper
+  const panelAWrap = document.createElement("div");
+  panelAWrap.style.cssText = "flex:1;position:relative;border-radius:8px;overflow:hidden;background:#0a0e1a;";
+  const canvasA = document.createElement("canvas");
+  canvasA.style.cssText = "width:100%;height:100%;display:block;";
+  panelAWrap.appendChild(canvasA);
+
+  // Panel D wrapper
+  const panelDWrap = document.createElement("div");
+  panelDWrap.style.cssText = "flex:1;position:relative;border-radius:8px;overflow:hidden;background:#080d18;";
+  const canvasD = document.createElement("canvas");
+  canvasD.style.cssText = "width:100%;height:100%;display:block;";
+  const infoCard = document.createElement("div");
+  infoCard.style.cssText = `
+    position:absolute;bottom:6px;left:6px;right:6px;
+    background:rgba(0,0,0,0.65);border-radius:5px;
+    padding:5px 8px;font-size:11px;line-height:1.5;
+    color:#ccc;font-family:'Inter',sans-serif;pointer-events:none;
+  `;
+  infoCard.textContent = "Tracking particle…";
+  panelDWrap.appendChild(canvasD);
+  panelDWrap.appendChild(infoCard);
+
+  topRow.appendChild(panelAWrap);
+  topRow.appendChild(panelDWrap);
+
+  // Panel C — Trajectory chart below
+  const chartWrap = document.createElement("div");
+  chartWrap.style.cssText = "border-radius:8px;overflow:hidden;background:#0d1117;height:200px;";
+  const canvasC = document.createElement("canvas");
+  canvasC.style.cssText = "width:100%;height:100%;display:block;";
+  chartWrap.appendChild(canvasC);
+
+  wrap.appendChild(topRow);
+  wrap.appendChild(chartWrap);
+
+  // Start animations after first layout
+  requestAnimationFrame(() => {
+    // Size the canvases
+    for (const c of [canvasA, canvasD, canvasC]) {
+      const rect = c.parentElement.getBoundingClientRect();
+      c.width  = Math.round(rect.width  || 240);
+      c.height = Math.round(rect.height || 200);
+    }
+    initPanelA(canvasA);
+    initPanelD(canvasD, infoCard);
+    // Trajectory chart is static — draw once (and on resize)
+    drawTrajectoryChart(canvasC);
+  });
+
+  // Redraw chart on resize
+  const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => {
+    const rect = canvasC.parentElement.getBoundingClientRect();
+    canvasC.width  = Math.round(rect.width  || 240);
+    canvasC.height = Math.round(rect.height || 200);
+    drawTrajectoryChart(canvasC);
+  }) : null;
+  if (ro) ro.observe(chartWrap);
+  cleanups.push(() => ro?.disconnect());
+
+  return {
+    el: wrap,
+    destroy() {
+      for (const cancel of rafIds) cancel();
+      for (const cleanup of cleanups) cleanup();
+    },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function initCoachDrawer(ctx = {}) {
   const host = document.getElementById("coachDrawerHost");
   if (!host) return;
@@ -344,6 +908,7 @@ export function initCoachDrawer(ctx = {}) {
     host.classList.contains("open") || host.getAttribute("aria-hidden") === "false";
 
   const clearDrawerDom = () => {
+    if (typeof _vizDestroy === "function") { _vizDestroy(); _vizDestroy = null; }
     host.classList.remove("open");
     host.setAttribute("aria-hidden", "true");
     host.innerHTML = "";
@@ -506,6 +1071,8 @@ export function initCoachDrawer(ctx = {}) {
     }
   };
 
+  let _vizDestroy = null;
+
   const openDrawer = (payload = {}) => {
     const candidateParsed = payload?.parsedQuery || state.activeCoachContext?.parsedQuery;
     if (candidateParsed) {
@@ -518,10 +1085,16 @@ export function initCoachDrawer(ctx = {}) {
       currentSolverData = payload?.solverData ?? synth.solverData;
     }
 
+    // Kill any previous animation loops
+    if (typeof _vizDestroy === "function") { _vizDestroy(); _vizDestroy = null; }
+
     const cfg = loadLLMConfig();
     state.llmConfig = cfg;
     const defaultPrompt =
       payload?.suggestedPrompt || "Why doesn't the standard shortcut hold here?";
+
+    const isKinematics = currentParsed?.family === "kinematics_equation" && currentSolverData?.field?.U;
+    const vizPlaceholder = isKinematics ? `<div id="coachKinViz"></div>` : "";
 
     host.classList.add("open");
     host.setAttribute("aria-hidden", "false");
@@ -534,6 +1107,7 @@ export function initCoachDrawer(ctx = {}) {
         </div>
       </div>
       <div id="coachDrawerContext"></div>
+      ${vizPlaceholder}
       <div class="coach-chips-row" id="coachDrawerChips" role="group" aria-label="Quick Coach Prompts"></div>
       <div class="field-group">
         <div class="field-label-row" style="font-size:12px;"><span>Ask a Conceptual Question</span></div>
@@ -542,6 +1116,18 @@ export function initCoachDrawer(ctx = {}) {
       <button type="button" class="btn-machined btn-primary" id="coachDrawerSubmit" style="font-size:12.5px;">Ask Coach (Grounded to Residuals)</button>
       <div id="coachDrawerReply" class="coach-drawer-reply"></div>
     `;
+
+    // Mount kinematics 3-panel viz
+    if (isKinematics) {
+      const vizHost = host.querySelector("#coachKinViz");
+      if (vizHost) {
+        const viz = buildKinematicsViz(currentSolverData);
+        if (viz) {
+          vizHost.appendChild(viz.el);
+          _vizDestroy = viz.destroy;
+        }
+      }
+    }
 
     renderContextBox();
     if (lastReply && !isQuizLocked()) {
@@ -628,6 +1214,7 @@ export function initCoachDrawer(ctx = {}) {
   document.addEventListener("keydown", onKeyDown);
 
   host._coachCleanup = () => {
+    if (typeof _vizDestroy === "function") { _vizDestroy(); _vizDestroy = null; }
     unsubOpen?.();
     unsubClose?.();
     unsubSolver?.();
