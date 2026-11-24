@@ -25,8 +25,9 @@ import { createLab2aLesson } from "./lessons/lesson_02a.js";
 import { createLab2bLesson } from "./lessons/lesson_02b.js";
 import { createLab2cLesson } from "./lessons/lesson_02c.js";
 import { createLab2dLesson } from "./lessons/lesson_02d.js";
-import { initAppSidebar, syncActiveSidebarView } from "./components/app_sidebar.js";
+import { initAppSidebar, syncActiveSidebarView, syncActiveSubtopic } from "./components/app_sidebar.js";
 import { initTopicModal } from "./components/topic_modal.js";
+import { renderConcept11, destroyConcept11, scrollToConceptSubtopic } from "./components/concept_1_1.js";
 
 const flowEngine = new FlowCanvasEngine(
   document.getElementById("flowCanvas"),
@@ -660,6 +661,7 @@ function openView(view) {
   const prevView = state.activeView;
   state.activeView = view;
   const overviewEl = document.getElementById("overviewView");
+  const conceptEl = document.getElementById("conceptView");
   const workbenchEl = document.getElementById("workbenchView");
   const labStrip = document.getElementById("labSelectorStrip");
 
@@ -671,6 +673,31 @@ function openView(view) {
   if (topNavTutor) topNavTutor.classList.toggle("active", view === "01");
 
   syncActiveSidebarView(view);
+
+  if (view === "concept-1.1") {
+    cancelLabPending();
+    flowEngine.setInteractiveHandles?.([], null);
+    flowEngine.setDrawMode?.(null, null);
+    flowEngine.setExternalHover?.(null);
+    plotEngine.setExternalHover?.(null);
+    closeCoachDrawerHost();
+    overviewEl?.classList.add("hidden");
+    workbenchEl?.classList.add("hidden");
+    if (conceptEl) {
+      conceptEl.classList.remove("hidden");
+      renderConcept11(conceptEl, {
+        openView,
+        onActiveSubtopicChange: (label) => syncActiveSubtopic("1", "1.1", label),
+      });
+    }
+    const mainContent = document.getElementById("appMainContent");
+    if (mainContent) mainContent.scrollTop = 0;
+    return;
+  }
+
+  destroyConcept11();
+  conceptEl?.classList.add("hidden");
+  syncActiveSubtopic(null, null, null);
 
   if (view === "overview") {
     cancelLabPending();
@@ -1194,7 +1221,28 @@ applyTheme(savedTheme);
 updateAiBadge();
 initCoachDrawer(makeBayCtx());
 initTopicsDropdown();
-initAppSidebar({ openView, openLab });
+function openConcept(chNum, secNum, subtopicText = null) {
+  if (String(chNum) === "1" && String(secNum) === "1.1") {
+    const alreadyOpen = state.activeView === "concept-1.1";
+    if (!alreadyOpen) {
+      openView("concept-1.1");
+    }
+    const idMap = {
+      "Historical context": "subtopic-1-1-history",
+      "Engineering applications": "subtopic-1-1-apps",
+      "Continuum vs particle dynamics": "subtopic-1-1-continuum",
+    };
+    const targetId = subtopicText ? idMap[subtopicText] : null;
+    if (targetId) {
+      requestAnimationFrame(() => scrollToConceptSubtopic(targetId));
+    }
+    syncActiveSubtopic("1", "1.1", subtopicText || "Historical context");
+    return true;
+  }
+  return false;
+}
+
+initAppSidebar({ openView, openLab, openConcept });
 initTopicModal({ openView, openLab });
 initSearchModal({
   openView,

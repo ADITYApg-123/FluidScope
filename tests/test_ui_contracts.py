@@ -43,6 +43,7 @@ def test_all_modular_css_and_js_assets_return_200():
         "/js/components/search_modal.js",
         "/js/components/app_sidebar.js",
         "/js/components/topic_modal.js",
+        "/js/components/concept_1_1.js",
         "/js/core/textbook_curriculum.js",
     ]
     for path in assets:
@@ -76,6 +77,7 @@ def test_index_html_workbench_shell_contracts():
         'id="appSidebar"',
         'id="topNavAiTutorBtn"',
         'id="topicModalBackdrop"',
+        'id="conceptView"',
     ]:
         assert elem_id in html, f"Missing shell landmark {elem_id}"
 
@@ -149,6 +151,25 @@ def test_curriculum_sidebar_assets():
     assert ".sidebar-toggle-btn" in layout_css
     assert ".top-nav-tutor-btn" in layout_css
     assert ".topic-modal-backdrop" in layout_css
+    assert ".concept-view" in layout_css
+    assert ".continuum-box-canvas" in layout_css
+
+
+def test_concept_1_1_assets():
+    """Section 1.1 interactive visual concept page assets and wiring are present."""
+    resp = client.get("/js/components/concept_1_1.js")
+    assert resp.status_code == 200
+    text = resp.text
+    assert "renderConcept11" in text
+    assert "destroyConcept11" in text
+    assert "Continuum valid" in text
+    assert "Continuum breaks down" in text
+    assert "historyCanvas" in text
+    assert "continuumBoxCanvas" in text
+
+    app_js = client.get("/js/app.js").text
+    assert "renderConcept11" in app_js
+    assert "openConcept" in app_js
 
 
 def test_topics_dropdown_and_topic_map_removal():

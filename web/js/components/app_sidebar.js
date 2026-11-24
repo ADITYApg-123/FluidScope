@@ -14,14 +14,14 @@ import { openTopicModal } from "./topic_modal.js";
 let sidebarHost = null;
 let currentActiveView = "overview";
 
-export function initAppSidebar({ openView, openLab }) {
+export function initAppSidebar({ openView, openLab, openConcept }) {
   sidebarHost = document.getElementById("appSidebar");
   const toggleBtn = document.getElementById("sidebarToggleBtn");
   const backdrop = document.getElementById("sidebarBackdrop");
 
   if (!sidebarHost) return;
 
-  renderSidebarContent({ openView, openLab });
+  renderSidebarContent({ openView, openLab, openConcept });
 
   // Toggle behavior from top bar toggle button
   if (toggleBtn) {
@@ -55,7 +55,7 @@ export function initAppSidebar({ openView, openLab }) {
   }
 }
 
-function renderSidebarContent({ openView, openLab }) {
+function renderSidebarContent({ openView, openLab, openConcept }) {
   const isMobile = () => window.innerWidth <= 900;
   const closeIfMobile = () => {
     if (isMobile()) {
@@ -189,7 +189,9 @@ function renderSidebarContent({ openView, openLab }) {
       const bay = btn.dataset.launchBay;
       const sub = btn.dataset.launchSub;
 
-      if (bay && sub) {
+      if (openConcept?.(chNum, secNum, null)) {
+        closeIfMobile();
+      } else if (bay && sub) {
         openLab(bay, sub);
         closeIfMobile();
       } else {
@@ -208,7 +210,9 @@ function renderSidebarContent({ openView, openLab }) {
       const bay = btn.dataset.launchBay;
       const sub = btn.dataset.launchSub;
 
-      if (bay && sub) {
+      if (openConcept?.(chNum, secNum, text)) {
+        closeIfMobile();
+      } else if (bay && sub) {
         openLab(bay, sub);
         closeIfMobile();
       } else {
@@ -342,5 +346,26 @@ export function syncActiveSidebarView(view) {
   sidebarHost.querySelectorAll("[data-sidebar-view]").forEach((btn) => {
     const isTarget = btn.dataset.sidebarView === view;
     btn.classList.toggle("active", isTarget);
+  });
+}
+
+/**
+ * Highlights the active topic & subtopic in the sidebar as the user scrolls or clicks.
+ */
+export function syncActiveSubtopic(chNum, secNum, subtopicLabel) {
+  if (!sidebarHost) return;
+  sidebarHost.querySelectorAll(".curriculum-topic-btn").forEach((btn) => {
+    const match = chNum && secNum && btn.dataset.ch === String(chNum) && btn.dataset.sec === String(secNum);
+    btn.classList.toggle("is-active", Boolean(match));
+  });
+  sidebarHost.querySelectorAll(".curriculum-subtopic-btn").forEach((btn) => {
+    const match =
+      chNum &&
+      secNum &&
+      subtopicLabel &&
+      btn.dataset.ch === String(chNum) &&
+      btn.dataset.sec === String(secNum) &&
+      btn.dataset.subtopic === subtopicLabel;
+    btn.classList.toggle("is-active", Boolean(match));
   });
 }

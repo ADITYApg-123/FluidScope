@@ -779,7 +779,7 @@ button.status-chip:hover {
 
 .chapter-chevron {
   color: var(--ink-muted);
-  transition: transform 0.2s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .chapter-tree-node.is-open .chapter-chevron {
@@ -787,20 +787,48 @@ button.status-chip:hover {
 }
 
 .chapter-accordion-body {
-  display: none;
-  padding: 8px 10px 10px;
-  border-top: 1px solid var(--seam);
+  display: grid;
+  grid-template-rows: 0fr;
+  padding: 0 10px;
+  border-top: 0 solid transparent;
   background: var(--bg-sub);
+  transition: grid-template-rows 0.24s cubic-bezier(0.16, 1, 0.3, 1), padding 0.24s ease;
 }
 
 .chapter-tree-node.is-open .chapter-accordion-body {
-  display: block;
+  grid-template-rows: 1fr;
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--seam);
 }
 
 .chapter-sections-list {
+  overflow: hidden;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.curriculum-topic-btn.is-active {
+  background: var(--accent-soft, #eef4ff);
+}
+
+.curriculum-topic-btn.is-active .curriculum-topic-title {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.curriculum-subtopic-btn.is-active {
+  background: var(--accent-soft, #eef4ff);
+}
+
+.curriculum-subtopic-btn.is-active .subtopic-label {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.curriculum-subtopic-btn.is-active .subtopic-dash {
+  color: var(--accent);
 }
 
 .sidebar-collapse-btn {
@@ -2821,6 +2849,495 @@ sup:not(.katex sup) {
   }
   .search-footer-hints {
     display: none;
+  }
+}
+
+/* ==========================================================================
+   INTERACTIVE CONCEPT VISUALS VIEW (SECTION 1.1)
+   ========================================================================== */
+.concept-view {
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 28px 64px;
+  box-sizing: border-box;
+}
+
+.concept-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.concept-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--seam);
+}
+
+.concept-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+
+.concept-back-btn {
+  background: var(--bg-sub);
+  border: 1px solid var(--seam-bright);
+  border-radius: 5px;
+  padding: 3px 9px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.concept-back-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.concept-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.concept-subtitle {
+  font-size: 14px;
+  color: var(--ink-secondary);
+  margin: 0;
+  max-width: 720px;
+  line-height: 1.5;
+}
+
+.concept-card {
+  background: var(--bg-bay);
+  border: 1px solid var(--seam);
+  border-radius: 10px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+  scroll-margin-top: 16px;
+}
+
+.concept-card-featured {
+  border-color: var(--accent-border, #bdd4fc);
+}
+
+.concept-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.concept-kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+
+.concept-card-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  margin: 2px 0 0;
+}
+
+.concept-hint {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* 1. Historical Context Timeline */
+.timeline-stage {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 18px;
+  align-items: center;
+}
+
+.timeline-canvas-wrap {
+  border: 1px solid var(--seam);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-sub);
+  height: 185px;
+}
+
+.history-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.timeline-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timeline-era {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.timeline-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+
+.timeline-concept {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.timeline-caption {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-secondary);
+  margin: 4px 0 0;
+}
+
+.timeline-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.timeline-scrubber {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.timeline-stops {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.timeline-stop {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg-sub);
+  border: 1px solid var(--seam);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.14s ease;
+}
+
+.timeline-stop:hover {
+  border-color: var(--accent);
+}
+
+.timeline-stop.active {
+  background: var(--accent-soft, #eef4ff);
+  border-color: var(--accent);
+}
+
+.stop-era {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+.timeline-stop.active .stop-era {
+  color: var(--accent);
+}
+
+.stop-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+/* 2. Engineering Applications Row */
+.apps-loop-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.app-scene-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--seam);
+  border-radius: 8px;
+  background: var(--bg-sub);
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.app-scene-card:hover,
+.app-scene-card.active {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.app-scene-canvas {
+  width: 100%;
+  height: 92px;
+  display: block;
+}
+
+.app-scene-footer {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid var(--seam);
+  background: var(--bg-bay);
+}
+
+.app-scene-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.app-scene-concept {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.app-concept-spotlight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: var(--bg-sub);
+  border: 1px solid var(--seam);
+  font-size: 13px;
+}
+
+.spotlight-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--accent-soft, #eef4ff);
+  color: var(--accent);
+  border: 1px solid var(--accent-border, #bdd4fc);
+  white-space: nowrap;
+}
+
+.spotlight-text {
+  color: var(--ink-secondary);
+}
+
+/* 3. Continuum vs Particle Dynamics */
+.continuum-status-badge {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+}
+
+.continuum-status-badge.valid {
+  background: var(--ok-soft, #ecfdf5);
+  color: var(--ok-ink, #047857);
+  border-color: var(--ok-border, #a7f3d0);
+}
+
+.continuum-status-badge.transition {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.continuum-status-badge.broken {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.continuum-workbench {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.continuum-box-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.continuum-box-canvas {
+  width: 100%;
+  height: 270px;
+  border: 1px solid var(--seam);
+  border-radius: 8px;
+  display: block;
+}
+
+.continuum-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zoom-end-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.continuum-zoom-slider {
+  flex: 1;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.continuum-telemetry-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.continuum-readout-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.readout-tile {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-sub);
+  border: 1px solid var(--seam);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.readout-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-muted);
+}
+
+.readout-value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+
+.continuum-spark-wrap {
+  border: 1px solid var(--seam);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--bg-sub);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.spark-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.spark-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-muted);
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.legend-dot.true-dot {
+  background: var(--accent);
+}
+
+.legend-dot.naive-dot {
+  background: var(--ink-muted);
+}
+
+.continuum-spark-canvas {
+  width: 100%;
+  height: 115px;
+  display: block;
+  border-radius: 4px;
+}
+
+.continuum-insight {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-secondary);
+  margin: 0;
+}
+
+@media (max-width: 960px) {
+  .timeline-stage,
+  .continuum-workbench {
+    grid-template-columns: 1fr;
+  }
+  .timeline-stops {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .apps-loop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
