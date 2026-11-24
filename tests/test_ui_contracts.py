@@ -63,8 +63,30 @@ def test_index_html_workbench_shell_contracts():
         'id="plotDataTableToggle"',
         'id="flowPlayPauseBtn"',
         'id="themeToggleBtn"',
+        'id="topicsBtn"',
+        'id="topicsMenu"',
     ]:
         assert elem_id in html, f"Missing shell landmark {elem_id}"
+
+
+def test_topics_dropdown_and_topic_map_removal():
+    overview_resp = client.get("/js/overview.js")
+    assert overview_resp.status_code == 200
+    assert "chapterCoverageTable" not in overview_resp.text
+    assert "chapter-table-wrap" not in overview_resp.text
+    assert "tr.chapter-row" not in overview_resp.text
+
+    app_resp = client.get("/js/app.js")
+    assert app_resp.status_code == 200
+    assert "initTopicsDropdown" in app_resp.text
+    assert "topics-menu-item" in app_resp.text
+    assert "topics-dropdown-wrap" in client.get("/").text
+
+    layout_resp = client.get("/styles/layout.css")
+    assert layout_resp.status_code == 200
+    assert ".chapter-table" not in layout_resp.text
+    assert ".topics-dropdown-wrap" in layout_resp.text
+    assert ".topics-menu" in layout_resp.text
 
 
 def test_lbm_tunnel_custom_obstacle_endpoint():

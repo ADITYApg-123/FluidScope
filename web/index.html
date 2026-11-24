@@ -31,6 +31,12 @@
 
       <nav class="bay-tabs" id="bayTabs" role="tablist" aria-label="Workspace Navigation">
         <button class="bay-tab active" data-view="overview" id="tabOverview">Overview</button>
+        <div class="topics-dropdown-wrap" id="topicsDropdownWrap">
+          <button class="bay-tab topics-btn" id="topicsBtn" aria-haspopup="true" aria-expanded="false" type="button" title="Jump to any of the 12 Physics Labs">
+            Topics <span class="topics-caret" aria-hidden="true">&#9662;</span>
+          </button>
+          <div class="topics-menu hidden" id="topicsMenu" role="menu" aria-label="Physics Topics"></div>
+        </div>
         <button class="bay-tab" data-view="01" id="tabTranslator">AI Translator</button>
         <button class="bay-tab" data-view="labs" id="tabLabs">Physics Labs</button>
         <button class="bay-tab" data-view="05" id="tabQuiz">12-Twist Quiz</button>
@@ -193,7 +199,7 @@
     </main>
   </div>
 
-  <script type="module" src="/js/app.js?v=7"></script>
+  <script type="module" src="/js/app.js?v=8"></script>
 </body>
 
 </html>

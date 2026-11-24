@@ -650,7 +650,10 @@ function updateLabPillsUI() {
   }
 }
 
+let closeTopicsDropdown = () => {};
+
 function openView(view) {
+  closeTopicsDropdown();
   const prevView = state.activeView;
   state.activeView = view;
   const overviewEl = document.getElementById("overviewView");
@@ -943,7 +946,140 @@ bus.on("solver:updated", (eventPayload = {}) => {
 });
 
 // Top Shell & Strip Bindings
-document.querySelectorAll("#bayTabs .bay-tab").forEach((tab) => {
+function initTopicsDropdown() {
+  const wrap = document.getElementById("topicsDropdownWrap");
+  const btn = document.getElementById("topicsBtn");
+  const menu = document.getElementById("topicsMenu");
+  if (!wrap || !btn || !menu) return;
+
+  const GROUPS = [
+    { category: "kinematics", heading: "Kinematics & Vortex (2A–2D)" },
+    { category: "viscous", heading: "Viscous & Boundary Layer (3A–3D)" },
+    { category: "conservation", heading: "Conservation & LBM (4A–4D)" },
+  ];
+
+  menu.innerHTML = GROUPS.map((group) => {
+    const items = LAB_CATALOG.filter((item) => item.category === group.category);
+    return `
+      <div class="topics-menu-group" role="group" aria-label="${group.heading}">
+        <div class="topics-group-title" role="presentation">${group.heading}</div>
+        <div class="topics-group-items">
+          ${items
+            .map(
+              (item) => `
+            <button
+              type="button"
+              class="topics-menu-item"
+              role="menuitem"
+              data-bay="${item.bay}"
+              data-sub="${item.sub}"
+              tabindex="-1"
+            >
+              <span class="topics-item-code">${item.id}</span>
+              <span class="topics-item-sep">·</span>
+              <span class="topics-item-label">${item.shortLabel}</span>
+            </button>
+          `
+            )
+            .join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  const getMenuItems = () => Array.from(menu.querySelectorAll(".topics-menu-item"));
+
+  closeTopicsDropdown = (restoreFocus = false) => {
+    if (menu.classList.contains("hidden")) return;
+    menu.classList.add("hidden");
+    btn.setAttribute("aria-expanded", "false");
+    btn.classList.remove("topics-active");
+    if (restoreFocus) btn.focus();
+  };
+
+  const openDropdown = () => {
+    menu.classList.remove("hidden");
+    btn.setAttribute("aria-expanded", "true");
+    btn.classList.add("topics-active");
+  };
+
+  const toggleDropdown = () => {
+    if (menu.classList.contains("hidden")) {
+      openDropdown();
+    } else {
+      closeTopicsDropdown();
+    }
+  };
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleDropdown();
+  });
+
+  menu.addEventListener("click", (e) => {
+    const itemBtn = e.target.closest(".topics-menu-item");
+    if (!itemBtn) return;
+    const { bay, sub } = itemBtn.dataset;
+    closeTopicsDropdown();
+    openLab(bay, sub);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!wrap.contains(e.target)) {
+      closeTopicsDropdown();
+    }
+  });
+
+  wrap.addEventListener("keydown", (e) => {
+    const isMenuOpen = !menu.classList.contains("hidden");
+
+    if (e.key === "Escape") {
+      if (isMenuOpen) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeTopicsDropdown(true);
+      }
+      return;
+    }
+
+    if (!isMenuOpen) {
+      if (e.target === btn && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        openDropdown();
+        const items = getMenuItems();
+        if (items.length > 0) items[0].focus();
+      }
+      return;
+    }
+
+    const items = getMenuItems();
+    const currentIndex = items.indexOf(document.activeElement);
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+      items[nextIndex].focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+      items[prevIndex].focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      if (items.length > 0) items[0].focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      if (items.length > 0) items[items.length - 1].focus();
+    } else if (e.key === "Tab") {
+      setTimeout(() => {
+        if (!wrap.contains(document.activeElement)) {
+          closeTopicsDropdown();
+        }
+      }, 0);
+    }
+  });
+}
+
+document.querySelectorAll("#bayTabs .bay-tab[data-view]").forEach((tab) => {
   tab.onclick = () => openView(tab.dataset.view);
 });
 
@@ -1044,6 +1180,7 @@ try {
 applyTheme(savedTheme);
 updateAiBadge();
 initCoachDrawer(makeBayCtx());
+initTopicsDropdown();
 renderOverview({ openView, openLab });
 renderRockers();
 refreshAudit();

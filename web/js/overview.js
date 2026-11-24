@@ -298,56 +298,6 @@ export function renderOverview(handlers) {
       </div>
       <div class="showcase-grid" id="overviewLabsGrid"></div>
     </section>
-
-    <!-- Complete 12-Row Clickable Topic Map -->
-    <section>
-      <div class="section-heading-row">
-        <h2 class="section-title">Topic Map</h2>
-        <span class="section-sub">All 12 topics, click any row to launch its live simulation</span>
-      </div>
-      <div class="chapter-table-wrap">
-        <table class="chapter-table" id="chapterCoverageTable">
-          <thead>
-            <tr>
-              <th>Topic Area</th>
-              <th>Topic &amp; Governing Physics</th>
-              <th>Interactive Lab</th>
-              <th>Core Concept Twist Demonstrated</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${LAB_CATALOG.map((item) => {
-              const meta = LAB_OVERVIEW_META[item.id] || {};
-              return `
-                <tr
-                  class="chapter-row"
-                  tabindex="0"
-                  role="button"
-                  aria-label="Launch ${item.label}"
-                  data-chapter-bay="${item.bay}"
-                  data-chapter-sub="${item.sub}"
-                >
-                  <td class="chapter-ref-cell">${item.chapter}</td>
-                  <td class="chapter-topic-cell">${meta.topic || item.shortLabel}</td>
-                  <td class="chapter-lab-cell">${item.label}</td>
-                  <td class="chapter-twist-cell">${meta.twistSummary || ""}</td>
-                  <td style="text-align:right;">
-                    <button
-                      type="button"
-                      class="btn-machined btn-xs"
-                      tabindex="-1"
-                      data-chapter-bay="${item.bay}"
-                      data-chapter-sub="${item.sub}"
-                    >Launch &rarr;</button>
-                  </td>
-                </tr>
-              `;
-            }).join("")}
-          </tbody>
-        </table>
-      </div>
-    </section>
   `;
 
   // Render the KaTeX equation inside the hero specimen
@@ -381,17 +331,4 @@ export function renderOverview(handlers) {
   document.getElementById("heroBtnTranslator").onclick = () => handlers.openView("01");
   document.getElementById("heroBtnQuiz").onclick = () => handlers.openView("05");
   document.getElementById("heroBtnSpecimen").onclick = () => handlers.openLab("02", "vortex");
-
-  // Bind every entire clickable <tr> row + keyboard Enter/Space
-  host.querySelectorAll("tr.chapter-row[data-chapter-bay]").forEach((row) => {
-    const launch = () => handlers.openLab(row.dataset.chapterBay, row.dataset.chapterSub);
-    row.onclick = launch;
-    row.onkeydown = (e) => {
-      if (e.target && e.target.tagName === "BUTTON") return;
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        launch();
-      }
-    };
-  });
 }
