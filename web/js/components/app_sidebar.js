@@ -1,13 +1,15 @@
 /**
  * App Sidebar & Textbook Curriculum Tree Component for FluidScope AI.
- * Provides collapsible navigation drawer with:
+ * Provides independent scrollable navigation drawer with:
  * - Direct view switcher (Overview, Physics Labs, AI Tutor, 12-Twist Quiz)
  * - 12 Active interactive lab direct links
- * - 16-Chapter textbook syllabus tree (Som, Biswas & Chakraborty 3rd Ed.)
+ * - 16-Chapter interactive textbook syllabus tree (Som, Biswas & Chakraborty 3rd Ed.)
+ * - Every topic and subtopic is interactive and clickable (opens lab or theory reader)
  */
 
 import { TEXTBOOK_CURRICULUM } from "../core/textbook_curriculum.js";
 import { LAB_CATALOG } from "../core/store.js";
+import { openTopicModal } from "./topic_modal.js";
 
 let sidebarHost = null;
 let currentActiveView = "overview";
@@ -21,12 +23,13 @@ export function initAppSidebar({ openView, openLab }) {
 
   renderSidebarContent({ openView, openLab });
 
-  // Toggle behavior
+  // Toggle behavior from top bar toggle button
   if (toggleBtn) {
     toggleBtn.onclick = (e) => {
       e.stopPropagation();
       const isCollapsed = sidebarHost.classList.toggle("collapsed");
       toggleBtn.setAttribute("aria-expanded", String(!isCollapsed));
+      toggleBtn.classList.toggle("active", !isCollapsed);
       if (backdrop) {
         backdrop.classList.toggle("visible", !isCollapsed && window.innerWidth <= 900);
       }
@@ -36,14 +39,20 @@ export function initAppSidebar({ openView, openLab }) {
   if (backdrop) {
     backdrop.onclick = () => {
       sidebarHost.classList.add("collapsed");
-      if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
+      if (toggleBtn) {
+        toggleBtn.setAttribute("aria-expanded", "false");
+        toggleBtn.classList.remove("active");
+      }
       backdrop.classList.remove("visible");
     };
   }
 
   // Ensure default state: OPEN on initial load
   sidebarHost.classList.remove("collapsed");
-  if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "true");
+  if (toggleBtn) {
+    toggleBtn.setAttribute("aria-expanded", "true");
+    toggleBtn.classList.add("active");
+  }
 }
 
 function renderSidebarContent({ openView, openLab }) {
@@ -52,7 +61,10 @@ function renderSidebarContent({ openView, openLab }) {
     if (isMobile()) {
       sidebarHost?.classList.add("collapsed");
       const toggleBtn = document.getElementById("sidebarToggleBtn");
-      if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
+      if (toggleBtn) {
+        toggleBtn.setAttribute("aria-expanded", "false");
+        toggleBtn.classList.remove("active");
+      }
       const backdrop = document.getElementById("sidebarBackdrop");
       if (backdrop) backdrop.classList.remove("visible");
     }
@@ -62,14 +74,18 @@ function renderSidebarContent({ openView, openLab }) {
     <div class="sidebar-header">
       <div class="sidebar-title-row">
         <div>
-          <div class="sidebar-sub">Syllabus &amp; Curriculum</div>
-          <h2 class="sidebar-heading">Textbook Index</h2>
+          <div class="sidebar-sub">Textbook Syllabus</div>
+          <h2 class="sidebar-heading">Curriculum Index</h2>
         </div>
-        <button type="button" class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close sidebar" title="Close sidebar">&times;</button>
+        <button type="button" class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Collapse sidebar" aria-label="Collapse sidebar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
       </div>
       <div class="sidebar-meta-row">
         <span class="sidebar-meta-badge">16 Chapters</span>
-        <span class="sidebar-meta-badge live">12 Interactive Labs</span>
+        <span class="sidebar-meta-badge live">12 Active Labs</span>
       </div>
       <div class="sidebar-filter-wrap">
         <input type="search" class="sidebar-filter-input" id="sidebarFilterInput" placeholder="Filter chapters or topics..." aria-label="Filter chapters or topics" />
@@ -118,13 +134,16 @@ function renderSidebarContent({ openView, openLab }) {
     </div>
   `;
 
-  // Bind close button
-  const closeBtn = document.getElementById("sidebarCloseBtn");
-  if (closeBtn) {
-    closeBtn.onclick = () => {
+  // Bind sidebar internal collapse button
+  const collapseBtn = document.getElementById("sidebarCollapseBtn");
+  if (collapseBtn) {
+    collapseBtn.onclick = () => {
       sidebarHost?.classList.add("collapsed");
       const toggleBtn = document.getElementById("sidebarToggleBtn");
-      if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
+      if (toggleBtn) {
+        toggleBtn.setAttribute("aria-expanded", "false");
+        toggleBtn.classList.remove("active");
+      }
       const backdrop = document.getElementById("sidebarBackdrop");
       if (backdrop) backdrop.classList.remove("visible");
     };
@@ -139,7 +158,7 @@ function renderSidebarContent({ openView, openLab }) {
     };
   });
 
-  // Bind direct lab launch buttons
+  // Bind direct lab launch buttons from the catalog
   sidebarHost.querySelectorAll("[data-launch-bay]").forEach((btn) => {
     btn.onclick = (e) => {
       e.stopPropagation();
@@ -150,7 +169,7 @@ function renderSidebarContent({ openView, openLab }) {
     };
   });
 
-  // Bind chapter accordion toggles
+  // Bind chapter accordion header toggles
   sidebarHost.querySelectorAll(".chapter-accordion-header").forEach((btn) => {
     btn.onclick = () => {
       const parent = btn.closest(".chapter-tree-node");
@@ -158,6 +177,43 @@ function renderSidebarContent({ openView, openLab }) {
       const wasOpen = parent.classList.contains("is-open");
       parent.classList.toggle("is-open", !wasOpen);
       btn.setAttribute("aria-expanded", String(!wasOpen));
+    };
+  });
+
+  // Bind topic header clicks (interactive!)
+  sidebarHost.querySelectorAll(".curriculum-topic-btn").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const chNum = btn.dataset.ch;
+      const secNum = btn.dataset.sec;
+      const bay = btn.dataset.launchBay;
+      const sub = btn.dataset.launchSub;
+
+      if (bay && sub) {
+        openLab(bay, sub);
+        closeIfMobile();
+      } else {
+        openTopicModal(chNum, secNum);
+      }
+    };
+  });
+
+  // Bind subtopic clicks (interactive!)
+  sidebarHost.querySelectorAll(".curriculum-subtopic-btn").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const chNum = btn.dataset.ch;
+      const secNum = btn.dataset.sec;
+      const text = btn.dataset.subtopic;
+      const bay = btn.dataset.launchBay;
+      const sub = btn.dataset.launchSub;
+
+      if (bay && sub) {
+        openLab(bay, sub);
+        closeIfMobile();
+      } else {
+        openTopicModal(chNum, secNum, text);
+      }
     };
   });
 
@@ -209,7 +265,7 @@ function renderCurriculumTree() {
         <button type="button" class="chapter-accordion-header" aria-expanded="${defaultOpen ? 'true' : 'false'}">
           <span class="chapter-node-left">
             <span class="chapter-num-badge">${String(ch.chapter).padStart(2, '0')}</span>
-            <span class="chapter-node-title">${ch.title}</span>
+            <span class="chapter-node-title" title="${ch.title}">${ch.title}</span>
           </span>
           <span class="chapter-node-right">
             ${hasActiveLabs ? `<span class="chapter-status-pill active-lab">${labCount} Lab${labCount > 1 ? 's' : ''}</span>` : `<span class="chapter-status-pill textbook">Theory</span>`}
@@ -221,28 +277,29 @@ function renderCurriculumTree() {
 
         <div class="chapter-accordion-body">
           <div class="chapter-sections-list">
-            ${ch.sections.map((sec) => `
-              <div class="curriculum-section-item">
-                <div class="section-item-header">
-                  <span class="section-num">${sec.num}</span>
-                  <span class="section-title">${sec.title}</span>
-                </div>
-                ${sec.labs && sec.labs.length ? `
-                  <div class="section-active-labs">
-                    ${sec.labs.map((l) => `
-                      <button type="button" class="section-launch-lab-btn" data-launch-bay="${l.bay}" data-launch-sub="${l.sub}">
-                        <span class="btn-tag">${l.code}</span>
-                        <span class="btn-name">${l.title}</span>
-                        <span class="btn-arrow">&rarr;</span>
+            ${ch.sections.map((sec) => {
+              const labMatch = sec.labs && sec.labs[0];
+              const bayAttr = labMatch ? `data-launch-bay="${labMatch.bay}" data-launch-sub="${labMatch.sub}"` : "";
+
+              return `
+                <div class="curriculum-section-item">
+                  <button type="button" class="curriculum-topic-btn" data-ch="${ch.chapter}" data-sec="${sec.num}" ${bayAttr} title="Click to view ${sec.num} details">
+                    <span class="curriculum-topic-num">${sec.num}</span>
+                    <span class="curriculum-topic-title">${sec.title}</span>
+                    ${labMatch ? `<span class="topic-lab-badge">${labMatch.code}</span>` : `<span class="topic-chevron">&rsaquo;</span>`}
+                  </button>
+
+                  <div class="curriculum-subtopics-list">
+                    ${sec.subtopics.map((st) => `
+                      <button type="button" class="curriculum-subtopic-btn" data-ch="${ch.chapter}" data-sec="${sec.num}" data-subtopic="${st}" ${bayAttr} title="Click to inspect: ${st}">
+                        <span class="subtopic-dash">&ndash;</span>
+                        <span class="subtopic-label">${st}</span>
                       </button>
                     `).join("")}
                   </div>
-                ` : ""}
-                <ul class="section-subtopics-list">
-                  ${sec.subtopics.map((st) => `<li class="subtopic-bullet">${st}</li>`).join("")}
-                </ul>
-              </div>
-            `).join("")}
+                </div>
+              `;
+            }).join("")}
           </div>
         </div>
       </div>
@@ -257,7 +314,6 @@ function applyFilter(query) {
   if (!query) {
     nodes.forEach((n, idx) => {
       n.style.display = "";
-      // Revert to default open state
       n.classList.toggle("is-open", idx < 2);
       const btn = n.querySelector(".chapter-accordion-header");
       if (btn) btn.setAttribute("aria-expanded", String(idx < 2));

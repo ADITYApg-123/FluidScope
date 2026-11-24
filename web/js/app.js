@@ -26,6 +26,7 @@ import { createLab2bLesson } from "./lessons/lesson_02b.js";
 import { createLab2cLesson } from "./lessons/lesson_02c.js";
 import { createLab2dLesson } from "./lessons/lesson_02d.js";
 import { initAppSidebar, syncActiveSidebarView } from "./components/app_sidebar.js";
+import { initTopicModal } from "./components/topic_modal.js";
 
 const flowEngine = new FlowCanvasEngine(
   document.getElementById("flowCanvas"),
@@ -1194,6 +1195,7 @@ updateAiBadge();
 initCoachDrawer(makeBayCtx());
 initTopicsDropdown();
 initAppSidebar({ openView, openLab });
+initTopicModal({ openView, openLab });
 initSearchModal({
   openView,
   openLab,
