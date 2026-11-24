@@ -21,47 +21,69 @@
   <div class="bench-shell">
     <!-- Top Header Bar -->
     <header class="top-bar">
-      <button class="brand-cluster" id="brandHomeBtn" title="Return to Overview">
-        <span class="brand-mark">FS</span>
-        <span class="brand-text-wrap">
-          <span class="brand-code">FluidScope AI</span>
-          <span class="brand-sub">Interactive Fluid Mechanics Workbench</span>
-        </span>
-      </button>
+      <div class="top-bar-left">
+        <button class="sidebar-toggle-btn active" id="sidebarToggleBtn" aria-expanded="true" aria-controls="appSidebar" title="Toggle Syllabus Index (Sidebar)">
+          <svg class="sidebar-toggle-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+          <span class="sidebar-toggle-label">Index</span>
+        </button>
+        <button class="brand-cluster" id="brandHomeBtn" title="Return to Overview">
+          <span class="brand-mark">FS</span>
+          <span class="brand-text-wrap">
+            <span class="brand-code">FluidScope AI</span>
+            <span class="brand-sub">Interactive Fluid Mechanics Workbench</span>
+          </span>
+        </button>
+      </div>
 
-      <nav class="bay-tabs" id="bayTabs" role="tablist" aria-label="Workspace Navigation">
+      <div class="top-bar-center">
+        <button class="status-chip search-trigger-btn" id="searchTriggerBtn" title="Search topics, chapters, labs, exam traps (Ctrl+K)">
+          <span class="search-trigger-icon" aria-hidden="true">&#128269;</span>
+          <span class="search-trigger-text">Search topics, chapters, labs...</span>
+          <kbd class="search-trigger-kbd">Ctrl K</kbd>
+        </button>
+      </div>
+
+      <div class="status-cluster">
+        <button class="status-chip top-nav-tutor-btn" id="topNavAiTutorBtn" title="Open AI Tutor">
+          AI Tutor
+        </button>
+        <button class="status-chip theme-toggle-btn" id="themeToggleBtn" title="Switch Light / Dark Studio Theme">
+          <span id="themeIcon">&#9788;</span>
+        </button>
+        <button class="status-chip" id="aiEngineBadge" title="Configure Offline / Gemini / OpenAI-Compatible AI">AI:
+          Offline</button>
+      </div>
+
+      <!-- Preserved hidden nav container for backward-compatible landmarks -->
+      <nav class="bay-tabs hidden" id="bayTabs" role="tablist" aria-label="Workspace Navigation" aria-hidden="true">
         <button class="bay-tab active" data-view="overview" id="tabOverview">Overview</button>
         <div class="topics-dropdown-wrap" id="topicsDropdownWrap">
-          <button class="bay-tab topics-btn" id="topicsBtn" aria-haspopup="true" aria-expanded="false" type="button" title="Jump to any of the 12 Physics Labs">
+          <button class="bay-tab topics-btn" id="topicsBtn" aria-haspopup="true" aria-expanded="false" type="button" tabindex="-1">
             Topics <span class="topics-caret" aria-hidden="true">&#9662;</span>
           </button>
-          <div class="topics-menu hidden" id="topicsMenu" role="menu" aria-label="Physics Topics"></div>
+          <div class="topics-menu hidden" id="topicsMenu" role="menu"></div>
         </div>
         <button class="bay-tab" data-view="01" id="tabTranslator">AI Translator</button>
         <button class="bay-tab" data-view="labs" id="tabLabs">Physics Labs</button>
         <button class="bay-tab" data-view="05" id="tabQuiz">12-Twist Quiz</button>
       </nav>
-
-      <div class="status-cluster">
-        <button class="status-chip search-trigger-btn" id="searchTriggerBtn" title="Search topics, labs, exam traps (Ctrl+K)">
-          <span class="search-trigger-icon" aria-hidden="true">&#128269;</span>
-          <span class="search-trigger-text">Search topics...</span>
-          <kbd class="search-trigger-kbd">Ctrl K</kbd>
-        </button>
-        <button class="status-chip theme-toggle-btn" id="themeToggleBtn" title="Switch Light / Dark Studio Theme">
-          <span id="themeIcon">&#9788;</span>
-          <span id="themeLabel">Light Mode</span>
-        </button>
-        <button class="status-chip" id="aiEngineBadge" title="Configure Offline / Gemini / OpenAI-Compatible AI">AI:
-          Offline</button>
-      </div>
     </header>
 
-    <!-- View 1: Dedicated Landing / Overview Page -->
-    <main class="overview-view" id="overviewView"></main>
+    <!-- Master App Layout with Collapsible Syllabus Sidebar -->
+    <div class="app-layout-body" id="appLayoutBody">
+      <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+      <aside class="app-sidebar" id="appSidebar" aria-label="Textbook Curriculum and Navigation"></aside>
 
-    <!-- Views 2–4: Interactive Workbench Shell -->
-    <main class="workbench-view hidden" id="workbenchView">
+      <div class="app-main-content" id="appMainContent">
+        <!-- View 1: Dedicated Landing / Overview Page -->
+        <main class="overview-view" id="overviewView"></main>
+
+        <!-- Views 2–4: Interactive Workbench Shell -->
+        <main class="workbench-view hidden" id="workbenchView">
       <!-- Unified Physics Labs Selector Strip -->
       <div class="lab-selector-strip hidden" id="labSelectorStrip" role="navigation" aria-label="Physics Lab Modules">
         <div class="lab-category-tabs" role="tablist" aria-label="Physics Lab Categories">
@@ -95,7 +117,7 @@
         </div>
         <div class="lab-nav-actions">
           <button type="button" class="btn-machined btn-xs" id="btnOpenLesson" title="Open Guided Interactive Lesson"
-            style="font-weight:600;color:var(--cobalt-ink);">📚 Lesson</button>
+            style="font-weight:600;color:var(--cobalt-ink);">Lesson</button>
           <button type="button" class="btn-machined btn-xs" id="btnPrevLab" title="Previous Lab">&lsaquo; Prev</button>
           <button type="button" class="btn-machined btn-xs" id="btnNextLab" title="Next Lab">Next &rsaquo;</button>
           <button type="button" class="btn-machined btn-xs" id="btnOpenCoach"
@@ -202,7 +224,9 @@
       <aside id="coachDrawerHost" class="coach-drawer-host" aria-hidden="true" aria-label="Solver-Grounded Doubt Coach">
       </aside>
     </main>
-  </div>
+      </div><!-- /appMainContent -->
+    </div><!-- /appLayoutBody -->
+  </div><!-- /bench-shell -->
 
   <!-- Global Command Palette Search Modal -->
   <div class="search-modal-backdrop hidden" id="searchModalBackdrop" role="dialog" aria-modal="true" aria-label="Search FluidScope AI topics and labs">
@@ -235,7 +259,7 @@
     </div>
   </div>
 
-  <script type="module" src="/js/app.js?v=9"></script>
+  <script type="module" src="/js/app.js?v=10"></script>
 </body>
 
 </html>

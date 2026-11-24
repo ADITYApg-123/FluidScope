@@ -5,6 +5,7 @@
  */
 import { LAB_CATALOG } from "../core/store.js";
 import { LAB_OVERVIEW_META } from "../overview.js";
+import { TEXTBOOK_CURRICULUM } from "../core/textbook_curriculum.js";
 
 const TWIST_SEARCH_DATA = [
   {
@@ -165,7 +166,6 @@ function buildSearchIndex() {
       id: `lab-${lab.id}`,
       group: "labs",
       groupLabel: "Physics Labs",
-      groupIcon: "🧪",
       badge: `Lab ${lab.id}`,
       title: lab.label,
       subtitle: `${lab.chapter} · ${meta.topic || meta.tag || lab.category}`,
@@ -194,7 +194,6 @@ function buildSearchIndex() {
       id: `trap-${lab.id}`,
       group: "traps",
       groupLabel: "Exam Traps",
-      groupIcon: "⚠️",
       badge: `Trap ${lab.id}`,
       title: `${lab.id} · ${meta.callout.replace(/^Exam Trap:\s*/i, "")}`,
       subtitle: `${lab.label} · Core Twist: ${meta.twistSummary || meta.topic || ""}`,
@@ -219,7 +218,6 @@ function buildSearchIndex() {
       id: `twist-${tw.id}`,
       group: "twists",
       groupLabel: "12-Twist Quiz Bank",
-      groupIcon: "🎯",
       badge: tw.id,
       title: tw.title,
       subtitle: `${tw.ref} · Trap: ${tw.shortcut}`,
@@ -244,7 +242,6 @@ function buildSearchIndex() {
       id: `lesson-${lesson.id}`,
       group: "lessons",
       groupLabel: "Guided Lessons",
-      groupIcon: "📚",
       badge: "Lesson",
       title: lesson.title,
       subtitle: `${lesson.topic} · Focus: ${lesson.trap}`,
@@ -261,13 +258,46 @@ function buildSearchIndex() {
       id: tool.id,
       group: "tools",
       groupLabel: "Workbench Navigation",
-      groupIcon: "🛠️",
       badge: tool.badge,
       title: tool.title,
       subtitle: tool.subtitle,
       description: tool.subtitle,
       searchableText: textParts.join(" ").toLowerCase(),
       action: tool.action,
+    });
+  });
+
+  // 6. Textbook Curriculum & Chapters (Som, Biswas & Chakraborty 3rd Ed.)
+  TEXTBOOK_CURRICULUM.forEach((ch) => {
+    ch.sections.forEach((sec) => {
+      const textParts = [
+        `chapter ${ch.chapter}`,
+        `ch${String(ch.chapter).padStart(2, "0")}`,
+        ch.title,
+        sec.num,
+        sec.title,
+        ...(sec.subtopics || []),
+        "textbook",
+        "curriculum",
+        "syllabus",
+        "som biswas chakraborty"
+      ];
+      const labMatch = sec.labs && sec.labs[0];
+      const action = labMatch
+        ? { type: "lab", bay: labMatch.bay, sub: labMatch.sub }
+        : { type: "view", view: "overview" };
+
+      index.push({
+        id: `curriculum-${ch.chapter}-${sec.num}`,
+        group: "curriculum",
+        groupLabel: `Chapter ${ch.chapter}: ${ch.title}`,
+        badge: sec.num,
+        title: sec.title,
+        subtitle: `Chapter ${ch.chapter} · ${labMatch ? `Active Lab: ${labMatch.code} (${labMatch.title})` : "Textbook Theory"}`,
+        description: (sec.subtopics || []).slice(0, 4).join(" · "),
+        searchableText: textParts.join(" ").toLowerCase(),
+        action,
+      });
     });
   });
 
@@ -381,7 +411,7 @@ export function initSearchModal(handlers = {}) {
         (g) => `
         <div class="search-result-group" role="group" aria-label="${g.label}">
           <div class="search-group-header">
-            <span>${g.icon} ${g.label}</span>
+            <span>${g.label}</span>
           </div>
           ${g.items
             .map(({ item, globalIdx }) => {

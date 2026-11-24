@@ -148,7 +148,7 @@ export function renderOverview(handlers) {
             <div class="lab-card-footer">
               <span class="lab-card-footer-meta">Lab ${item.id} · Interactive Simulation</span>
               <div style="display:flex;align-items:center;gap:6px;">
-                ${hasLesson ? `<button type="button" class="btn-machined btn-xs" data-launch-lesson-bay="${item.bay}" data-launch-lesson-sub="${item.sub}" style="font-weight:700;color:var(--cobalt-ink);background:var(--accent-soft);border-color:var(--accent-border);padding:6px 10px;">📚 Start Lesson</button>` : ""}
+                ${hasLesson ? `<button type="button" class="btn-machined btn-xs" data-launch-lesson-bay="${item.bay}" data-launch-lesson-sub="${item.sub}" style="font-weight:700;color:var(--cobalt-ink);background:var(--accent-soft);border-color:var(--accent-border);padding:6px 10px;">Start Lesson</button>` : ""}
                 <button type="button" class="btn-machined btn-primary" data-launch-bay="${item.bay}" data-launch-sub="${item.sub}">Open Lab &rarr;</button>
               </div>
             </div>

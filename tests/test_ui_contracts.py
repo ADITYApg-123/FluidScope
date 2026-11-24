@@ -40,6 +40,9 @@ def test_all_modular_css_and_js_assets_return_200():
         "/js/stations/mappers_kinematics.js",
         "/js/stations/mappers_viscous.js",
         "/js/stations/mappers_conservation.js",
+        "/js/components/search_modal.js",
+        "/js/components/app_sidebar.js",
+        "/js/core/textbook_curriculum.js",
     ]
     for path in assets:
         resp = client.get(path)
@@ -68,6 +71,9 @@ def test_index_html_workbench_shell_contracts():
         'id="searchTriggerBtn"',
         'id="searchModalBackdrop"',
         'id="globalSearchInput"',
+        'id="sidebarToggleBtn"',
+        'id="appSidebar"',
+        'id="topNavAiTutorBtn"',
     ]:
         assert elem_id in html, f"Missing shell landmark {elem_id}"
 
@@ -107,6 +113,32 @@ def test_search_modal_assets():
     assert ".search-result-item" in css
     assert ".search-highlight" in css
     assert ".search-trigger-btn" in css
+
+
+def test_curriculum_sidebar_assets():
+    """Textbook curriculum sidebar JS, HTML, and CSS landmarks are present and consistent."""
+    html = client.get("/").text
+    assert 'id="sidebarToggleBtn"' in html
+    assert 'id="appSidebar"' in html
+    assert 'id="topNavAiTutorBtn"' in html
+
+    sidebar_js = client.get("/js/components/app_sidebar.js")
+    assert sidebar_js.status_code == 200
+    assert "initAppSidebar" in sidebar_js.text
+    assert "syncActiveSidebarView" in sidebar_js.text
+
+    curr_js = client.get("/js/core/textbook_curriculum.js")
+    assert curr_js.status_code == 200
+    assert "TEXTBOOK_CURRICULUM" in curr_js.text
+
+    app_js = client.get("/js/app.js").text
+    assert "initAppSidebar" in app_js
+    assert "topNavAiTutorBtn" in app_js
+
+    layout_css = client.get("/styles/layout.css").text
+    assert ".app-sidebar" in layout_css
+    assert ".sidebar-toggle-btn" in layout_css
+    assert ".top-nav-tutor-btn" in layout_css
 
 
 def test_topics_dropdown_and_topic_map_removal():
