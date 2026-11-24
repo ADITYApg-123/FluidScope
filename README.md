@@ -1,6 +1,8 @@
-# FluidScope AI — Aerospace Fluid Mechanics Concept-Twist Workbench
+# FluidScope AI — Interactive Fluid Mechanics Workbench
 
-**FluidScope AI** is a neuro-symbolic Fluid Mechanics workbench and interactive 60fps flow telemetry bench for aerospace and mechanical engineering.
+🌐 **Live Interactive Website:** **[https://fluidscope.onrender.com/](https://fluidscope.onrender.com/)**
+
+**FluidScope AI** is an interactive fluid mechanics workbench and 60fps flow telemetry lab for engineering students and educators.
 
 Instead of passively solving toy problems or generating hallucinated diagrams from an LLM, FluidScope enforces a strict **Neuro-Symbolic Architecture**:
 
