@@ -43,6 +43,11 @@
       </nav>
 
       <div class="status-cluster">
+        <button class="status-chip search-trigger-btn" id="searchTriggerBtn" title="Search topics, labs, exam traps (Ctrl+K)">
+          <span class="search-trigger-icon" aria-hidden="true">&#128269;</span>
+          <span class="search-trigger-text">Search topics...</span>
+          <kbd class="search-trigger-kbd">Ctrl K</kbd>
+        </button>
         <button class="status-chip theme-toggle-btn" id="themeToggleBtn" title="Switch Light / Dark Studio Theme">
           <span id="themeIcon">&#9788;</span>
           <span id="themeLabel">Light Mode</span>
@@ -199,7 +204,38 @@
     </main>
   </div>
 
-  <script type="module" src="/js/app.js?v=8"></script>
+  <!-- Global Command Palette Search Modal -->
+  <div class="search-modal-backdrop hidden" id="searchModalBackdrop" role="dialog" aria-modal="true" aria-label="Search FluidScope AI topics and labs">
+    <div class="search-modal-panel" id="searchModalPanel">
+      <div class="search-input-header">
+        <span class="search-input-icon" aria-hidden="true">&#128269;</span>
+        <input
+          type="text"
+          class="search-input-field"
+          id="globalSearchInput"
+          placeholder="Search topics, labs, exam traps, equations... (e.g. vortex, bernoulli, separation)"
+          autocomplete="off"
+          spellcheck="false"
+          aria-autocomplete="list"
+          aria-controls="searchResultsList"
+        />
+        <button type="button" class="search-close-btn" id="searchCloseBtn" title="Close search (Esc)" aria-label="Close search">&times;</button>
+      </div>
+
+      <div class="search-results-container" id="searchResultsList" role="listbox"></div>
+
+      <div class="search-modal-footer">
+        <div class="search-footer-hints">
+          <span><kbd>&uarr;</kbd> <kbd>&darr;</kbd> Navigate</span>
+          <span><kbd>&crarr;</kbd> Open</span>
+          <span><kbd>Esc</kbd> Close</span>
+        </div>
+        <span class="search-footer-count" id="searchResultCount">12 Labs &middot; 12 Exam Twists &middot; 4 Lessons</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/app.js?v=9"></script>
 </body>
 
 </html>

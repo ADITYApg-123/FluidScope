@@ -5,7 +5,7 @@
 import { renderTex } from "./math_ui.js";
 import { LAB_CATALOG } from "./core/store.js";
 
-const LAB_OVERVIEW_META = {
+export const LAB_OVERVIEW_META = {
   "2A": {
     tag: "Kinematics",
     topic: "Unsteady Kinematics & Stokes' Circulation Check",

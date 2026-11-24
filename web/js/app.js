@@ -11,6 +11,7 @@ import {
 } from "./core/store.js";
 import { updateEquationStrip } from "./core/equation_strip.js";
 import { initCoachDrawer } from "./components/coach_drawer.js";
+import { initSearchModal } from "./components/search_modal.js";
 import { renderTex } from "./math_ui.js";
 import { FlowCanvasEngine } from "./canvas_flow.js";
 import { CurvePlotEngine } from "./canvas_plots.js";
@@ -1181,6 +1182,16 @@ applyTheme(savedTheme);
 updateAiBadge();
 initCoachDrawer(makeBayCtx());
 initTopicsDropdown();
+initSearchModal({
+  openView,
+  openLab,
+  openTwist: (index) => {
+    state.s5 = state.s5 || {};
+    state.s5.activeIndex = index;
+    openView("05");
+    openStation("05");
+  },
+});
 renderOverview({ openView, openLab });
 renderRockers();
 refreshAudit();

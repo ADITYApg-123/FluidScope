@@ -65,8 +65,48 @@ def test_index_html_workbench_shell_contracts():
         'id="themeToggleBtn"',
         'id="topicsBtn"',
         'id="topicsMenu"',
+        'id="searchTriggerBtn"',
+        'id="searchModalBackdrop"',
+        'id="globalSearchInput"',
     ]:
         assert elem_id in html, f"Missing shell landmark {elem_id}"
+
+
+def test_search_modal_assets():
+    """Search modal JS, HTML, and CSS landmarks are present and consistent."""
+    html = client.get("/").text
+    # HTML landmarks
+    assert 'id="searchTriggerBtn"' in html
+    assert 'id="searchModalBackdrop"' in html
+    assert 'id="globalSearchInput"' in html
+    assert 'id="searchResultsList"' in html
+    assert 'id="searchCloseBtn"' in html
+
+    # JS component served correctly
+    search_js = client.get("/js/components/search_modal.js")
+    assert search_js.status_code == 200
+    assert len(search_js.content) > 0
+    assert "buildSearchIndex" in search_js.text
+    assert "initSearchModal" in search_js.text
+    assert "LAB_OVERVIEW_META" in search_js.text
+    assert "openLab" in search_js.text
+
+    # app.js wires it up
+    app_js = client.get("/js/app.js").text
+    assert "initSearchModal" in app_js
+    assert "openTwist" in app_js
+
+    # overview.js exports LAB_OVERVIEW_META
+    overview_js = client.get("/js/overview.js").text
+    assert "export const LAB_OVERVIEW_META" in overview_js
+
+    # layout.css has the search styles
+    css = client.get("/styles/layout.css").text
+    assert ".search-modal-backdrop" in css
+    assert ".search-modal-panel" in css
+    assert ".search-result-item" in css
+    assert ".search-highlight" in css
+    assert ".search-trigger-btn" in css
 
 
 def test_topics_dropdown_and_topic_map_removal():
