@@ -7,7 +7,7 @@ import {
   computeAssignmentSim,
   renderAssignmentAnimCanvas,
   renderAssignmentPlotCanvas,
-} from "../components/assignment_engine.js?v=2";
+} from "../components/assignment_engine.js?v=3";
 import { loadLLMConfig } from "../core/store.js";
 import { fmtNum } from "../core/color_scales.js";
 import { renderTex, formatRichText, formatInlineRichText } from "../math_ui.js";

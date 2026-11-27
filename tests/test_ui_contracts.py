@@ -50,6 +50,7 @@ def test_all_modular_css_and_js_assets_return_200():
         "/js/components/tutor_kinematics_viz.js",
         "/js/core/textbook_curriculum.js",
         "/js/data/assignment_hw_specs.js",
+        "/js/components/assignment_cfd_viz.js",
         "/js/components/assignment_engine.js",
         "/js/stations/station_assignment.js",
     ]
@@ -512,6 +513,9 @@ def test_assignment_workspace_contracts():
     assert "computeAssignmentSim" in engine_js
     assert "renderAssignmentAnimCanvas" in engine_js
     assert "renderAssignmentPlotCanvas" in engine_js
+
+    cfd_viz_js = client.get("/js/components/assignment_cfd_viz.js").text
+    assert "renderAssignmentProCanvas" in cfd_viz_js
 
     station_js = client.get("/js/stations/station_assignment.js").text
     assert "renderAssignmentView" in station_js

@@ -3,64 +3,8 @@
  * for FluidScope AI Interactive Assignment Workspace (HW 1–7).
  */
 import { fmtNum, niceTicks, OKABE_ITO } from "../core/color_scales.js";
-import {
-  DARK_BG,
-  clamp,
-  computeFittedTransform as _coreComputeFittedTransform,
-  worldToPx as _coreWorldToPx,
-  pxToWorld as _corePxToWorld,
-  drawDraftingFrame,
-  drawArrowHead as _coreDrawArrowHead,
-  drawPill as _coreDrawPill,
-  createFieldSampler,
-  speedRgb as _coreSpeedRgb,
-} from "./tutor_canvas_core.js";
-
-function computeFittedTransform(rawBounds, cw, ch, pad, aspectLock = true) {
-  const arr = Array.isArray(rawBounds)
-    ? rawBounds
-    : [rawBounds.xMin, rawBounds.xMax, rawBounds.yMin, rawBounds.yMax];
-  return _coreComputeFittedTransform(arr, cw, ch, pad, aspectLock);
-}
-
-function worldToPx(wx, wy, tr) {
-  const [x, y] = _coreWorldToPx(wx, wy, tr);
-  return { x, y };
-}
-
-function pxToWorld(px, py, tr) {
-  const [x, y] = _corePxToWorld(px, py, tr);
-  return { x, y };
-}
-
-function speedRgb(t, alpha = 1) {
-  const [r, g, b] = _coreSpeedRgb(clamp(t, 0, 1));
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function drawArrowHead(ctx, xTip, yTip, angleRad, size, color) {
-  const back = Math.max(4, size * 1.4);
-  _coreDrawArrowHead(
-    ctx,
-    xTip - Math.cos(angleRad) * back,
-    yTip - Math.sin(angleRad) * back,
-    xTip,
-    yTip,
-    color,
-    1.5,
-    size
-  );
-}
-
-function drawPill(ctx, text, cx, cy, accentColor = "#e2e8f0") {
-  ctx.save();
-  ctx.font = '600 11px "IBM Plex Mono", monospace';
-  const halfW = ctx.measureText(text).width * 0.5 + 10;
-  ctx.restore();
-  const canvasW = ctx.canvas ? ctx.canvas.clientWidth || ctx.canvas.width || cx * 2 : cx * 2;
-  const safeCx = clamp(cx, halfW + 8, Math.max(halfW + 8, canvasW - halfW - 8));
-  _coreDrawPill(ctx, safeCx, cy, text, accentColor);
-}
+import { clamp, createFieldSampler } from "./tutor_canvas_core.js";
+import { renderAssignmentProCanvas } from "./assignment_cfd_viz.js?v=1";
 
 // ── Mathematical Utilities ──────────────────────────────────────────────────
 
@@ -614,51 +558,7 @@ export function computeAssignmentSim(hwId, values, customKinData = null) {
   }
 }
 
-// ── Shared Vector-Field / Canvas Helpers ────────────────────────────────────
-
-function drawGridVectors(ctx, tr, rawBounds, evalUV, speedMax = 3.0) {
-  const nx = 14, ny = 9;
-  const dx = (rawBounds.xMax - rawBounds.xMin) / nx;
-  const dy = (rawBounds.yMax - rawBounds.yMin) / ny;
-  for (let i = 0; i <= nx; i++) {
-    for (let j = 0; j <= ny; j++) {
-      const wx = rawBounds.xMin + (i + 0.35) * dx;
-      const wy = rawBounds.yMin + (j + 0.35) * dy;
-      const [u, v] = evalUV(wx, wy);
-      const sp = Math.hypot(u, v);
-      if (sp < 1e-4) continue;
-      const len = clamp((sp / speedMax) * 18, 4, 22);
-      const p0 = worldToPx(wx, wy, tr);
-      const ux = u / sp, uy = v / sp;
-      const x2 = p0.x + ux * len, y2 = p0.y - uy * len;
-      ctx.strokeStyle = speedRgb(sp / speedMax, 0.55);
-      ctx.lineWidth = 1.25;
-      ctx.beginPath();
-      ctx.moveTo(p0.x, p0.y);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-      drawArrowHead(ctx, x2, y2, Math.atan2(-uy, ux), 4.5, speedRgb(sp / speedMax, 0.72));
-    }
-  }
-}
-
-function drawCurveWorld(ctx, pts, tr, color, lineWidth = 2.4, dashed = false) {
-  if (!pts || pts.length < 2) return;
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lineWidth;
-  if (dashed) ctx.setLineDash([6, 4]);
-  ctx.beginPath();
-  pts.forEach((pt, idx) => {
-    const p = worldToPx(pt.x, pt.y, tr);
-    if (idx === 0) ctx.moveTo(p.x, p.y);
-    else ctx.lineTo(p.x, p.y);
-  });
-  ctx.stroke();
-  ctx.restore();
-}
-
-// ── Primary Animated CFD Canvas Renderer ────────────────────────────────────
+// ── Studio-Grade Animated CFD Canvas Renderer ───────────────────────────────
 
 export function renderAssignmentAnimCanvas(
   ctx,
@@ -670,561 +570,13 @@ export function renderAssignmentAnimCanvas(
   animTimeSec,
   hoverPx = null
 ) {
-  ctx.clearRect(0, 0, cw, ch);
-  ctx.fillStyle = DARK_BG;
-  ctx.fillRect(0, 0, cw, ch);
-
-  const cycleLen = Math.max(sim?.tEnd || 4.0, 1.5);
-  const loopT = animTimeSec % cycleLen;
-  const frac = loopT / cycleLen;
-  let hoverInfo = null;
-
-  if (hwId === "hw1") {
-    const tCur = sim.isCustom ? loopT : v.t0 + frac * (sim.tEnd - v.t0);
-    const evalUV = sim.isCustom
-      ? (wx, wy) => {
-          const s = sim.sampler?.sample(wx, wy);
-          return s ? [s.u, s.v] : [0, 0];
-        }
-      : (wx) => [wx / (tCur + v.t0), v.v0];
-
-    const allPts = [...(sim.streamline || []), ...(sim.pathline || []), ...(sim.streakline || [])];
-    let xMin = sim.isCustom ? sim.bounds[0] : 0;
-    let xMax = sim.isCustom ? sim.bounds[1] : Math.max(2.6 * v.x0, 2.5);
-    let yMin = sim.isCustom ? sim.bounds[2] : v.y0 - 0.5;
-    let yMax = sim.isCustom ? sim.bounds[3] : v.y0 + Math.max(2.5, 1.4 * v.v0 * sim.tEnd);
-    if (!sim.isCustom && allPts.length) {
-      allPts.forEach((p) => {
-        if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
-          xMin = Math.min(xMin, p.x - 0.5);
-          xMax = Math.max(xMax, p.x + 0.6);
-          yMin = Math.min(yMin, p.y - 0.5);
-          yMax = Math.max(yMax, p.y + 0.6);
-        }
-      });
-    }
-    const raw = { xMin, xMax, yMin, yMax };
-    const tr = computeFittedTransform(raw, cw, ch, { left: 48, right: 20, top: 28, bottom: 32 }, false);
-    drawDraftingFrame(ctx, tr, cw, ch, "x (m)", "y (m)");
-    drawGridVectors(ctx, tr, raw, evalUV, 3.5);
-
-    // Draw instant Streamline (t0 or live), Pathline, and animated Streakline
-    drawCurveWorld(ctx, sim.streamline, tr, "#38bdf8", 2.2, true);
-    drawCurveWorld(ctx, sim.pathline, tr, "#f59e0b", 2.5, false);
-
-    // Animate streakline dye emerging from injector to active time
-    if (!sim.isCustom) {
-      const dyeCount = Math.max(2, Math.floor(frac * 45));
-      for (let k = 0; k <= dyeCount; k++) {
-        const tau = v.t0 + (k / 45) * (tCur - v.t0);
-        const px = v.x0 * ((tCur + v.t0) / (tau + v.t0));
-        const py = v.y0 + v.v0 * (tCur - tau);
-        const sc = worldToPx(px, py, tr);
-        ctx.fillStyle = "rgba(232, 121, 249, 0.88)";
-        ctx.beginPath();
-        ctx.arc(sc.x, sc.y, 3.2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      const xP = v.x0 * ((tCur + v.t0) / (2 * v.t0));
-      const yP = v.y0 + v.v0 * (tCur - v.t0);
-      const pSc = worldToPx(xP, yP, tr);
-      ctx.fillStyle = "#f59e0b";
-      ctx.beginPath();
-      ctx.arc(pSc.x, pSc.y, 6.2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 1.6;
-      ctx.stroke();
-
-      const seedSc = worldToPx(v.x0, v.y0, tr);
-      ctx.fillStyle = "#10b981";
-      ctx.beginPath();
-      ctx.arc(seedSc.x, seedSc.y, 5, 0, Math.PI * 2);
-      ctx.fill();
-      drawPill(ctx, `t = ${fmtNum(tCur, 2)} s | Stream (dash) vs Path (orange) vs Streak (magenta)`, cw - 205, 16, "#38bdf8");
-    } else {
-      drawCurveWorld(ctx, sim.streakline, tr, "#e879f9", 2.4, false);
-      const idx = Math.min(sim.pathline.length - 1, Math.floor(frac * Math.max(1, sim.pathline.length - 1)));
-      if (sim.pathline[idx]) {
-        const pSc = worldToPx(sim.pathline[idx].x, sim.pathline[idx].y, tr);
-        ctx.fillStyle = "#f59e0b";
-        ctx.beginPath();
-        ctx.arc(pSc.x, pSc.y, 6, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      drawPill(ctx, "Custom SymPy / SciPy Kinematics Active", cw - 140, 16, "#10b981");
-    }
-
-    if (hoverPx) {
-      const wp = pxToWorld(hoverPx.x, hoverPx.y, tr);
-      const [u, velV] = evalUV(wp.x, wp.y);
-      hoverInfo = `x=${fmtNum(wp.x, 2)} m, y=${fmtNum(wp.y, 2)} m | u=${fmtNum(u, 2)}, v=${fmtNum(velV, 2)} m/s`;
-    }
-  } else if (hwId === "hw2") {
-    const raw = sim.isCustom
-      ? { xMin: sim.bounds[0], xMax: sim.bounds[1], yMin: sim.bounds[2], yMax: sim.bounds[3] }
-      : { xMin: -0.3, xMax: 4.2, yMin: -0.2, yMax: 2.8 };
-    const tr = computeFittedTransform(raw, cw, ch, { left: 48, right: 20, top: 28, bottom: 32 }, true);
-    drawDraftingFrame(ctx, tr, cw, ch, "x (m)", "y (m)");
-
-    const evalUV = sim.isCustom
-      ? (wx, wy) => {
-          const s = sim.sampler?.sample(wx, wy);
-          return s ? [s.u, s.v] : [0, 0];
-        }
-      : (wx, wy) => [v.A * wx, -v.A * wy];
-    if (!sim.isCustom) {
-      drawGridVectors(ctx, tr, raw, evalUV, Math.max(v.A * 3.5, 1.5));
-      // Draw subtle family of hyperbolic streamlines xy = C
-      [0.3, 0.8, 1.5, 2.4, 3.6].forEach((cVal) => {
-        const pts = [];
-        for (let i = 0; i <= 45; i++) {
-          const px = 0.14 + (i / 45) * 3.9;
-          const py = cVal / px;
-          if (py <= raw.yMax) pts.push({ x: px, y: py });
-        }
-        drawCurveWorld(ctx, pts, tr, "rgba(56, 189, 248, 0.35)", 1.3, false);
-      });
-
-      // Stagnation point (0,0)
-      const orig = worldToPx(0, 0, tr);
-      ctx.fillStyle = "#f43f5e";
-      ctx.beginPath();
-      ctx.arc(orig.x, orig.y, 5.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Initial ghost box
-      const { xL, xR, yB, yT } = sim.box0;
-      const g1 = worldToPx(xL, yT, tr);
-      const g2 = worldToPx(xR, yB, tr);
-      ctx.save();
-      ctx.strokeStyle = "rgba(148, 163, 184, 0.55)";
-      ctx.setLineDash([4, 3]);
-      ctx.strokeRect(g1.x, g1.y, g2.x - g1.x, g2.y - g1.y);
-      ctx.restore();
-
-      // Animated stretched material rectangle preserving exact area
-      const stretch = Math.exp(v.A * loopT);
-      const comp = Math.exp(-v.A * loopT);
-      const ax1 = xL * stretch, ax2 = xR * stretch, ay1 = yB * comp, ay2 = yT * comp;
-      const pTopL = worldToPx(ax1, ay2, tr);
-      const pBotR = worldToPx(ax2, ay1, tr);
-      ctx.fillStyle = "rgba(16, 185, 129, 0.32)";
-      ctx.strokeStyle = "#10b981";
-      ctx.lineWidth = 2.2;
-      ctx.fillRect(pTopL.x, pTopL.y, pBotR.x - pTopL.x, pBotR.y - pTopL.y);
-      ctx.strokeRect(pTopL.x, pTopL.y, pBotR.x - pTopL.x, pBotR.y - pTopL.y);
-
-      drawPill(
-        ctx,
-        `At=${fmtNum(v.A * loopT, 2)} | Lx=${fmtNum(ax2 - ax1, 2)}m, Ly=${fmtNum(ay2 - ay1, 2)}m, Area=${fmtNum(sim.area0, 3)}m² (Const)`,
-        cw - 215,
-        16,
-        "#10b981"
-      );
-    } else {
-      drawGridVectors(ctx, tr, raw, evalUV, 4.0);
-      drawCurveWorld(ctx, sim.initialEl, tr, "rgba(148,163,184,0.65)", 1.6, true);
-      if (sim.deformedEl?.length > 2) {
-        ctx.save();
-        ctx.fillStyle = "rgba(16, 185, 129, 0.28)";
-        ctx.strokeStyle = "#10b981";
-        ctx.lineWidth = 2.0;
-        ctx.beginPath();
-        sim.deformedEl.forEach((pt, idx) => {
-          const p = worldToPx(pt.x, pt.y, tr);
-          if (idx === 0) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        });
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
-      }
-      drawCurveWorld(ctx, sim.streamline, tr, "#38bdf8", 2.2, true);
-      drawCurveWorld(ctx, sim.pathline, tr, "#f59e0b", 2.4, false);
-      const idx = Math.min((sim.pathline?.length || 1) - 1, Math.floor(frac * Math.max(1, (sim.pathline?.length || 1) - 1)));
-      if (sim.pathline?.[idx]) {
-        const pSc = worldToPx(sim.pathline[idx].x, sim.pathline[idx].y, tr);
-        ctx.fillStyle = "#f59e0b";
-        ctx.beginPath();
-        ctx.arc(pSc.x, pSc.y, 5.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      drawPill(ctx, `Custom Planar Flow | Div=${fmtNum(sim.point_probe?.divergence, 2)}, ωz=${fmtNum(sim.point_probe?.vorticity_z, 2)}`, cw - 175, 16, "#10b981");
-    }
-
-    if (hoverPx) {
-      const wp = pxToWorld(hoverPx.x, hoverPx.y, tr);
-      const [u, velV] = evalUV(wp.x, wp.y);
-      hoverInfo = `x=${fmtNum(wp.x, 2)} m, y=${fmtNum(wp.y, 2)} m | |V|=${fmtNum(Math.hypot(u, velV), 2)} m/s | Div=0, ωz=0`;
-    }
-  } else if (hwId === "hw3" || (hwId === "hw4" && !sim.isGas)) {
-    // Axisymmetric / Vertical Liquid Tank Draining Visualizer
-    const h0 = hwId === "hw3" ? sim.h0 : v.h0;
-    const tr = computeFittedTransform(
-      { xMin: -1.1, xMax: 1.1, yMin: -0.25 * h0, yMax: 1.18 * h0 },
-      cw,
-      ch,
-      { left: 48, right: 20, top: 28, bottom: 26 },
-      false
-    );
-    drawDraftingFrame(ctx, tr, cw, ch, "r / R", "Liquid Height z (m)");
-
-    // Current fluid level interpolating viscous trace (hw3) or Torr/unsteady trace (hw4)
-    const trace = hwId === "hw3" ? sim.viscTrace : sim.torrCurve;
-    let hCur = h0 * Math.max(0, 1 - frac);
-    if (trace && trace.length > 1) {
-      const targetT = frac * sim.tEnd;
-      hCur = trace[trace.length - 1][hwId === "hw3" ? "hNorm" : "h"] * (hwId === "hw3" ? h0 : 1);
-      for (let i = 1; i < trace.length; i++) {
-        if (trace[i].t >= targetT) {
-          const span = Math.max(trace[i].t - trace[i - 1].t, 1e-6);
-          const alpha = (targetT - trace[i - 1].t) / span;
-          const v0y = trace[i - 1][hwId === "hw3" ? "hNorm" : "h"] * (hwId === "hw3" ? h0 : 1);
-          const v1y = trace[i][hwId === "hw3" ? "hNorm" : "h"] * (hwId === "hw3" ? h0 : 1);
-          hCur = v0y + alpha * (v1y - v0y);
-          break;
-        }
-      }
-    }
-
-    const rTop = hwId === "hw3" ? 0.55 : 0.65;
-    const rBot = hwId === "hw3" ? 0.55 : Math.max(0.08, rTop * (sim.rb / Math.max(v.R_top, 0.05)));
-    const rFree = rBot + (hCur / h0) * (rTop - rBot);
-    const orifW = clamp(hwId === "hw3" ? rBot / Math.sqrt(Math.max(v.ratio_A, 1.5)) : rBot * 0.2, 0.04, rBot * 0.65);
-
-    const pTL = worldToPx(-rTop, h0, tr), pTR = worldToPx(rTop, h0, tr);
-    const pBL = worldToPx(-rBot, 0, tr), pBR = worldToPx(rBot, 0, tr);
-    const pFL = worldToPx(-rFree, hCur, tr), pFR = worldToPx(rFree, hCur, tr);
-    const pOL = worldToPx(-orifW, 0, tr), pOR = worldToPx(orifW, 0, tr);
-
-    // Water fill polygon
-    if (hCur > 0.005 * h0) {
-      ctx.fillStyle = "rgba(14, 165, 233, 0.42)";
-      ctx.beginPath();
-      ctx.moveTo(pFL.x, pFL.y);
-      ctx.lineTo(pFR.x, pFR.y);
-      ctx.lineTo(pBR.x, pBR.y);
-      ctx.lineTo(pBL.x, pBL.y);
-      ctx.closePath();
-      ctx.fill();
-
-      // Free surface bright meniscus
-      ctx.strokeStyle = "#38bdf8";
-      ctx.lineWidth = 2.6;
-      ctx.beginPath();
-      ctx.moveTo(pFL.x, pFL.y);
-      ctx.lineTo(pFR.x, pFR.y);
-      ctx.stroke();
-
-      // Draining jet below orifice
-      const pJetBot = worldToPx(0, -0.22 * h0, tr);
-      const jetAlpha = clamp(Math.sqrt(hCur / h0), 0.15, 0.92);
-      ctx.fillStyle = `rgba(56, 189, 248, ${jetAlpha})`;
-      ctx.fillRect(pOL.x, pOL.y, pOR.x - pOL.x, Math.max(4, pJetBot.y - pOL.y));
-    }
-
-    // Tank walls with orifice gap at bottom
-    ctx.strokeStyle = "#cbd5e1";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(pTL.x, pTL.y);
-    ctx.lineTo(pBL.x, pBL.y);
-    ctx.lineTo(pOL.x, pOL.y);
-    ctx.moveTo(pOR.x, pOR.y);
-    ctx.lineTo(pBR.x, pBR.y);
-    ctx.lineTo(pTR.x, pTR.y);
-    ctx.stroke();
-
-    const vJet = Math.sqrt(2 * 9.81 * Math.max(hCur, 0));
-    drawPill(
-      ctx,
-      `h = ${fmtNum(hCur, 3)} m (${fmtNum((hCur / h0) * 100, 1)}%) | V_jet ≈ ${fmtNum(vJet, 2)} m/s`,
-      cw - 175,
-      16,
-      "#38bdf8"
-    );
-    if (hoverPx) {
-      const wp = pxToWorld(hoverPx.x, hoverPx.y, tr);
-      const pGauge = wp.y <= hCur && wp.y >= 0 ? 1000 * 9.81 * (hCur - wp.y) : 0;
-      hoverInfo = `z=${fmtNum(wp.y, 3)} m | Hydrostatic Δp ≈ ${fmtNum(pGauge, 0)} Pa`;
-    }
-  } else if (hwId === "hw4" && sim.isGas) {
-    // Problem 4.2 Spherical Gas Vessel
-    const densityFrac = Math.exp(-loopT / Math.max(sim.tau, 1e-4));
-    const cx = cw * 0.48, cy = ch * 0.52;
-    const radPx = Math.min(cw, ch) * 0.34;
-
-    // Gas glow inside sphere proportional to density
-    const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, radPx);
-    grad.addColorStop(0, `rgba(56, 189, 248, ${0.15 + 0.65 * densityFrac})`);
-    grad.addColorStop(1, `rgba(14, 116, 144, ${0.08 + 0.45 * densityFrac})`);
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radPx, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Animated gas molecules thinning smoothly as rho drops
-    const nMols = Math.max(4, Math.round(90 * densityFrac));
-    for (let i = 0; i < nMols; i++) {
-      const ang = i * 2.39996 + animTimeSec * (0.4 + (i % 5) * 0.25);
-      const rM = radPx * 0.88 * Math.sqrt(((i * 37) % 100) / 100);
-      ctx.fillStyle = `rgba(186, 230, 253, ${0.35 + 0.6 * densityFrac})`;
-      ctx.beginPath();
-      ctx.arc(cx + rM * Math.cos(ang), cy + rM * Math.sin(ang), 2.3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Sphere shell + right exhaust valve neck
-    ctx.strokeStyle = "#cbd5e1";
-    ctx.lineWidth = 3.2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radPx, 0.14, Math.PI * 2 - 0.14);
-    ctx.lineTo(cx + radPx + 36, cy - radPx * 0.14);
-    ctx.moveTo(cx + radPx * Math.cos(0.14), cy + radPx * Math.sin(0.14));
-    ctx.lineTo(cx + radPx + 36, cy + radPx * 0.14);
-    ctx.stroke();
-
-    // Exhaust plume
-    const plumeAlpha = 0.12 + 0.7 * densityFrac;
-    ctx.fillStyle = `rgba(245, 158, 11, ${plumeAlpha})`;
-    ctx.beginPath();
-    ctx.moveTo(cx + radPx + 36, cy - radPx * 0.12);
-    ctx.lineTo(cx + radPx + 115, cy - radPx * (0.28 + 0.12 * densityFrac));
-    ctx.lineTo(cx + radPx + 115, cy + radPx * (0.28 + 0.12 * densityFrac));
-    ctx.lineTo(cx + radPx + 36, cy + radPx * 0.12);
-    ctx.closePath();
-    ctx.fill();
-
-    drawPill(
-      ctx,
-      `t=${fmtNum(loopT, 1)}s (t/τ=${fmtNum(loopT / sim.tau, 2)}) | ρ/ρ₀ = ${fmtNum(densityFrac * 100, 1)}% | τ=${fmtNum(sim.tau, 2)}s`,
-      cw - 205,
-      18,
-      "#38bdf8"
-    );
-    if (hoverPx) {
-      hoverInfo = `ρ(t)=${fmtNum(v.rho0 * densityFrac, 3)} kg/m³ | ṁ_e=${fmtNum(v.k_exhaust * v.rho0 * densityFrac, 4)} kg/s`;
-    }
-  } else if (hwId === "hw5") {
-    // Taylor-Couette Annulus Visualizer
-    const cx = cw * 0.5, cy = ch * 0.52;
-    const outerPx = Math.min(cw, ch) * 0.39;
-    const innerPx = Math.max(14, outerPx / v.kappa);
-
-    // Annular velocity heatmap rings
-    const rings = 18;
-    for (let k = rings - 1; k >= 0; k--) {
-      const xi = k / (rings - 1);
-      const rNorm = 1 + (v.kappa - 1) * xi;
-      const uNorm = (v.kappa * v.kappa / rNorm - rNorm) / (v.kappa * v.kappa - 1);
-      const rCurPx = innerPx + xi * (outerPx - innerPx);
-      ctx.fillStyle = ductColorCss(uNorm, 0.85);
-      ctx.beginPath();
-      ctx.arc(cx, cy, rCurPx, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Inner rotating shaft (omega1)
-    ctx.fillStyle = "#1e293b";
-    ctx.beginPath();
-    ctx.arc(cx, cy, innerPx, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#38bdf8";
-    ctx.lineWidth = 2.6;
-    ctx.stroke();
-
-    // Rotating rotor spoke so angular speed omega1 is visibly encoded
-    const rotorAng = animTimeSec * Math.min(v.omega1 * 0.35, 6.0);
-    ctx.strokeStyle = "#f59e0b";
-    ctx.lineWidth = 2.4;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + innerPx * 0.85 * Math.cos(rotorAng), cy + innerPx * 0.85 * Math.sin(rotorAng));
-    ctx.stroke();
-
-    // Orbiting azimuthal dye tracers inside annulus
-    for (let ring = 0; ring < 5; ring++) {
-      const xi = 0.12 + ring * 0.19;
-      const rNorm = 1 + (v.kappa - 1) * xi;
-      const uNorm = (v.kappa * v.kappa / rNorm - rNorm) / (v.kappa * v.kappa - 1);
-      const omegaEff = (uNorm / rNorm) * Math.min(v.omega1 * 0.35, 6.0);
-      const rCurPx = innerPx + xi * (outerPx - innerPx);
-      for (let m = 0; m < 8; m++) {
-        const theta = m * ((Math.PI * 2) / 8) + animTimeSec * omegaEff;
-        ctx.fillStyle = "#ffffff";
-        ctx.beginPath();
-        ctx.arc(cx + rCurPx * Math.cos(theta), cy + rCurPx * Math.sin(theta), 2.4, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    // Stationary outer cylinder border
-    ctx.strokeStyle = "#e2e8f0";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(cx, cy, outerPx, 0, Math.PI * 2);
-    ctx.stroke();
-
-    drawPill(
-      ctx,
-      `κ=${fmtNum(v.kappa, 2)} | Ω₁R₁=${fmtNum(sim.vWall, 2)} m/s | Δp*=${fmtNum(sim.dp_norm_max, 3)}`,
-      cw - 175,
-      18,
-      "#f59e0b"
-    );
-    if (hoverPx) {
-      const rPx = Math.hypot(hoverPx.x - cx, hoverPx.y - cy);
-      if (rPx >= innerPx && rPx <= outerPx) {
-        const xi = (rPx - innerPx) / (outerPx - innerPx);
-        const rNorm = 1 + (v.kappa - 1) * xi;
-        const uNorm = (v.kappa * v.kappa / rNorm - rNorm) / (v.kappa * v.kappa - 1);
-        hoverInfo = `ξ=${fmtNum(xi, 2)} (r/R₁=${fmtNum(rNorm, 2)}) | u_θ/V₁=${fmtNum(uNorm, 3)} (Couette ${fmtNum(1 - xi, 3)})`;
-      }
-    }
-  } else if (hwId === "hw6") {
-    // Rectangular Duct 2D Heatmap & Isometric Velocity Plug
-    const aspectVis = clamp(v.alpha, 0.25, 4.0);
-    const maxW = cw * 0.72, maxH = ch * 0.68;
-    const boxW = aspectVis >= 1 ? maxW : maxW * aspectVis;
-    const boxH = aspectVis >= 1 ? maxW / aspectVis : maxH;
-    const scale = Math.min(maxW / boxW, maxH / boxH);
-    const drawW = boxW * scale, drawH = boxH * scale;
-    const x0 = (cw - drawW) / 2, y0 = (ch - drawH) / 2 + 6;
-
-    const GN = sim.GN;
-    const cellW = drawW / (GN - 1), cellH = drawH / (GN - 1);
-    for (let j = 0; j < GN - 1; j++) {
-      for (let i = 0; i < GN - 1; i++) {
-        const vCell = sim.grid[j * GN + i] / sim.wMax;
-        ctx.fillStyle = ductColorCss(vCell, 0.95);
-        ctx.fillRect(x0 + i * cellW, y0 + j * cellH, cellW + 0.6, cellH + 0.6);
-      }
-    }
-
-    // Concentric animated axial pulse iso-contours
-    [0.25, 0.5, 0.75, 0.92].forEach((lvl) => {
-      ctx.strokeStyle = "rgba(255,255,255,0.28)";
-      ctx.lineWidth = 1.1;
-      const rx = drawW * 0.48 * Math.sqrt(1 - lvl);
-      const ry = drawH * 0.48 * Math.sqrt(1 - lvl);
-      ctx.beginPath();
-      ctx.ellipse(cw / 2, y0 + drawH / 2, rx, ry, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    });
-
-    // No-slip duct frame
-    ctx.strokeStyle = "#f8fafc";
-    ctx.lineWidth = 2.6;
-    ctx.strokeRect(x0, y0, drawW, drawH);
-
-    drawPill(
-      ctx,
-      `α = ${fmtNum(v.alpha, 2)} | W*(0,0) = ${fmtNum(sim.w_center, 4)} | Poiseuille Dev: ${fmtNum(sim.dev_pct, 2)}%`,
-      cw - 195,
-      18,
-      "#38bdf8"
-    );
-    if (hoverPx && hoverPx.x >= x0 && hoverPx.x <= x0 + drawW && hoverPx.y >= y0 && hoverPx.y <= y0 + drawH) {
-      const X = ((hoverPx.x - x0) / drawW) * 2 - 1;
-      const Y = 1 - ((hoverPx.y - y0) / drawH) * 2;
-      const wVal = evalDuctWStar(X, Y, v.alpha, Math.round(v.n_terms));
-      hoverInfo = `X=${fmtNum(X, 2)}, Y=${fmtNum(Y, 2)} | W*(X,Y)=${fmtNum(wVal, 4)} (${fmtNum((wVal / sim.w_center) * 100, 1)}% peak)`;
-    }
-  } else if (hwId === "hw7") {
-    // Stokes' First Problem / Bounded Couette Moving Plate Visualizer
-    const tr = computeFittedTransform(
-      { xMin: 0, xMax: 3.0, yMin: -0.08 * sim.yMaxMM, yMax: 1.12 * sim.yMaxMM },
-      cw,
-      ch,
-      { left: 52, right: 20, top: 28, bottom: 32 },
-      false
-    );
-    drawDraftingFrame(ctx, tr, cw, ch, "u / U (scaled)", "y (mm)");
-
-    const tLive = Math.max(0.2, loopT);
-    const deltaNow = 3.6428 * Math.sqrt(sim.nu * tLive) * 1000;
-
-    // Velocity profile & shear vectors rising upward from y = 0 plate
-    const profPts = [];
-    for (let i = 0; i <= 40; i++) {
-      const yMM = (i / 40) * sim.yMaxMM;
-      const uVal = v.bounded
-        ? evalBoundedCouette(yMM * 1e-3, tLive, v.U, sim.nu, sim.H)
-        : v.U * erfc((yMM * 1e-3) / (2 * Math.sqrt(sim.nu * tLive)));
-      const uNorm = uVal / Math.max(v.U, 1e-4);
-      profPts.push({ x: 0.4 + 2.2 * uNorm, y: yMM });
-
-      if (i % 4 === 0 && i > 0) {
-        const pL = worldToPx(0.4, yMM, tr);
-        const pR = worldToPx(0.4 + 2.2 * uNorm, yMM, tr);
-        ctx.strokeStyle = speedRgb(uNorm, 0.8);
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        ctx.moveTo(pL.x, pL.y);
-        ctx.lineTo(pR.x, pR.y);
-        ctx.stroke();
-        if (pR.x - pL.x > 6) {
-          drawArrowHead(ctx, pR.x, pR.y, 0, 5, speedRgb(uNorm, 0.9));
-        }
-      }
-    }
-    drawCurveWorld(ctx, profPts, tr, "#38bdf8", 2.8, false);
-
-    // Reference axis x_u = 0.4
-    drawCurveWorld(ctx, [{ x: 0.4, y: 0 }, { x: 0.4, y: sim.yMaxMM }], tr, "rgba(148,163,184,0.45)", 1.2, false);
-
-    // Moving bottom plate with sliding hatches
-    const pBaseL = worldToPx(0, 0, tr), pBaseR = worldToPx(3.0, 0, tr);
-    ctx.strokeStyle = "#f59e0b";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(pBaseL.x, pBaseL.y);
-    ctx.lineTo(pBaseR.x, pBaseR.y);
-    ctx.stroke();
-
-    const offsetPx = ((animTimeSec * v.U * 75) % 24);
-    for (let sx = pBaseL.x + offsetPx; sx < pBaseR.x; sx += 24) {
-      ctx.fillStyle = "#f59e0b";
-      ctx.fillRect(sx - 3, pBaseL.y + 3, 6, 5);
-    }
-
-    // Penetration depth line delta_99 or Upper Wall H
-    if (v.bounded) {
-      const pTopL = worldToPx(0, v.H_mm, tr), pTopR = worldToPx(3.0, v.H_mm, tr);
-      ctx.strokeStyle = "#e2e8f0";
-      ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      ctx.moveTo(pTopL.x, pTopL.y);
-      ctx.lineTo(pTopR.x, pTopR.y);
-      ctx.stroke();
-    } else if (deltaNow <= sim.yMaxMM) {
-      drawCurveWorld(ctx, [{ x: 0, y: deltaNow }, { x: 3.0, y: deltaNow }], tr, "#10b981", 1.8, true);
-    }
-
-    drawPill(
-      ctx,
-      v.bounded
-        ? `Bounded Gap H=${fmtNum(v.H_mm, 1)}mm | νt/H²=${fmtNum((sim.nu * tLive) / (sim.H * sim.H), 3)}`
-        : `t=${fmtNum(tLive, 1)}s | δ₉₉=${fmtNum(deltaNow, 2)} mm`,
-      cw - 165,
-      16,
-      v.bounded ? "#f59e0b" : "#10b981"
-    );
-    if (hoverPx) {
-      const wp = pxToWorld(hoverPx.x, hoverPx.y, tr);
-      if (wp.y >= 0 && wp.y <= sim.yMaxMM) {
-        const uVal = v.bounded
-          ? evalBoundedCouette(wp.y * 1e-3, tLive, v.U, sim.nu, sim.H)
-          : v.U * erfc((wp.y * 1e-3) / (2 * Math.sqrt(sim.nu * tLive)));
-        hoverInfo = `y=${fmtNum(wp.y, 2)} mm | u/U=${fmtNum(uVal / v.U, 3)} (${fmtNum(uVal, 3)} m/s)`;
-      }
-    }
-  }
-
-  return hoverInfo;
+  return renderAssignmentProCanvas(ctx, cw, ch, hwId, v, sim, animTimeSec, hoverPx, {
+    erfc,
+    evalBoundedCouette,
+  });
 }
+
+
 
 // ── Bottom Calibrated Telemetry Plot Renderer (Light Paper Studio Palette) ────
 
@@ -1297,6 +649,37 @@ function strokeSeries(ctx, pts, mapX, mapY, color, dashed = false, width = 2.2) 
   ctx.restore();
 }
 
+function drawPaperLegend(ctx, cw, pad, items) {
+  if (!items?.length) return;
+  ctx.save();
+  ctx.font = "600 10px system-ui, sans-serif";
+  let xCursor = cw - pad.right - 8;
+  const yMid = pad.top + 11;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    const tw = ctx.measureText(it.label).width;
+    const blockW = tw + 22;
+    xCursor -= blockW;
+    ctx.fillStyle = "rgba(252, 251, 248, 0.88)";
+    ctx.fillRect(xCursor - 2, yMid - 8, blockW, 15);
+    ctx.strokeStyle = it.color;
+    ctx.lineWidth = 2.2;
+    if (it.dashed) ctx.setLineDash([4, 2]);
+    else ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(xCursor + 2, yMid);
+    ctx.lineTo(xCursor + 15, yMid);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#1e293b";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(it.label, xCursor + 18, yMid);
+    xCursor -= 8;
+  }
+  ctx.restore();
+}
+
 export function renderAssignmentPlotCanvas(ctx, cw, ch, hwId, v, sim, plotTabId) {
   ctx.clearRect(0, 0, cw, ch);
 
@@ -1308,6 +691,10 @@ export function renderAssignmentPlotCanvas(ctx, cw, ch, hwId, v, sim, plotTabId)
       const f = drawPaperPlotFrame(ctx, cw, ch, tTicks, vTicks, "Time t (s)", "Coordinate (m)");
       strokeSeries(ctx, sim.pathline.map((p) => [p.t, p.x]), f.mapX, f.mapY, OKABE_ITO.blue);
       strokeSeries(ctx, sim.pathline.map((p) => [p.t, p.y]), f.mapX, f.mapY, OKABE_ITO.vermilion);
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "x(t)", color: OKABE_ITO.blue },
+        { label: "y(t)", color: OKABE_ITO.vermilion },
+      ]);
     } else if (v.nondim && !sim.isCustom) {
       const denomY = Math.max(v.v0 * v.t0, 0.05);
       const toXY = (p) => [p.x / Math.max(v.x0, 0.05), (p.y - v.y0) / denomY];
@@ -1318,6 +705,11 @@ export function renderAssignmentPlotCanvas(ctx, cw, ch, hwId, v, sim, plotTabId)
       strokeSeries(ctx, sim.streamline.map(toXY), f.mapX, f.mapY, OKABE_ITO.blue, true);
       strokeSeries(ctx, sim.pathline.map(toXY), f.mapX, f.mapY, OKABE_ITO.orange);
       strokeSeries(ctx, sim.streakline.map(toXY), f.mapX, f.mapY, OKABE_ITO.purple);
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "Streamline", color: OKABE_ITO.blue, dashed: true },
+        { label: "Pathline", color: OKABE_ITO.orange },
+        { label: "Streakline", color: OKABE_ITO.purple },
+      ]);
     } else {
       const all = [...(sim.streamline || []), ...(sim.pathline || []), ...(sim.streakline || [])];
       const xs = all.map((p) => p.x).filter(Number.isFinite);
@@ -1328,11 +720,17 @@ export function renderAssignmentPlotCanvas(ctx, cw, ch, hwId, v, sim, plotTabId)
       strokeSeries(ctx, (sim.streamline || []).map((p) => [p.x, p.y]), f.mapX, f.mapY, OKABE_ITO.blue, true);
       strokeSeries(ctx, (sim.pathline || []).map((p) => [p.x, p.y]), f.mapX, f.mapY, OKABE_ITO.orange);
       strokeSeries(ctx, (sim.streakline || []).map((p) => [p.x, p.y]), f.mapX, f.mapY, OKABE_ITO.purple);
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "Stream", color: OKABE_ITO.blue, dashed: true },
+        { label: "Path", color: OKABE_ITO.orange },
+        { label: "Streak", color: OKABE_ITO.purple },
+      ]);
     }
   } else if (hwId === "hw2") {
     if (plotTabId === "pressure" && !sim.isCustom) {
       const f = drawPaperPlotFrame(ctx, cw, ch, [0, 0.5, 1, 1.5, 2, 2.5], [-3.2, -2.4, -1.6, -0.8, 0], "Radial Distance r (m)", "(p − p₀) / (½ρA²)");
       strokeSeries(ctx, sim.pressureCurve.map((p) => [p.r, p.dpNorm]), f.mapX, f.mapY, OKABE_ITO.vermilion);
+      drawPaperLegend(ctx, cw, f.pad, [{ label: "−r² Stagnation Drop", color: OKABE_ITO.vermilion }]);
     } else if (!sim.isCustom) {
       const ts = sim.timeSeries || [];
       const xTicks = niceTicks(0, Math.max(0.5, ...ts.map((p) => p.t)), 5);
@@ -1342,6 +740,11 @@ export function renderAssignmentPlotCanvas(ctx, cw, ch, hwId, v, sim, plotTabId)
       strokeSeries(ctx, ts.map((p) => [p.t, p.lx]), f.mapX, f.mapY, OKABE_ITO.blue);
       strokeSeries(ctx, ts.map((p) => [p.t, p.ly]), f.mapX, f.mapY, OKABE_ITO.orange);
       strokeSeries(ctx, ts.map((p) => [p.t, p.areaRatio]), f.mapX, f.mapY, OKABE_ITO.green, true);
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "Lx(t)", color: OKABE_ITO.blue },
+        { label: "Ly(t)", color: OKABE_ITO.orange },
+        { label: "Area/A₀=1", color: OKABE_ITO.green, dashed: true },
+      ]);
     } else {
       const all = [...(sim.streamline || []), ...(sim.pathline || []), ...(sim.streakline || [])];
       const xs = all.map((p) => p.x).filter(Number.isFinite);
@@ -1352,6 +755,10 @@ export function renderAssignmentPlotCanvas(ctx, cw, ch, hwId, v, sim, plotTabId)
       strokeSeries(ctx, (sim.streamline || []).map((p) => [p.x, p.y]), f.mapX, f.mapY, OKABE_ITO.blue, true);
       strokeSeries(ctx, (sim.pathline || []).map((p) => [p.x, p.y]), f.mapX, f.mapY, OKABE_ITO.orange);
       strokeSeries(ctx, (sim.streakline || []).map((p) => [p.x, p.y]), f.mapX, f.mapY, OKABE_ITO.purple);
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "Stream", color: OKABE_ITO.blue, dashed: true },
+        { label: "Path", color: OKABE_ITO.orange },
+      ]);
     }
   } else if (hwId === "hw3") {
     if (plotTabId === "error") {
@@ -1367,6 +774,12 @@ export function renderAssignmentPlotCanvas(ctx, cw, ch, hwId, v, sim, plotTabId)
           cols[idx % cols.length]
         );
       });
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "h₀/√A=1", color: cols[0] },
+        { label: "10", color: cols[1] },
+        { label: "100", color: cols[2] },
+        { label: "1000", color: cols[3] },
+      ]);
     } else {
       const xMax = Math.max(1.2, sim.t_visc_ratio, sim.t_ideal_ratio);
       const f = drawPaperPlotFrame(ctx, cw, ch, niceTicks(0, xMax, 5), [0, 0.25, 0.5, 0.75, 1.0], "Normalized Time t / t_T", "Liquid Height h / h₀");
@@ -1378,6 +791,11 @@ export function renderAssignmentPlotCanvas(ctx, cw, ch, hwId, v, sim, plotTabId)
       strokeSeries(ctx, torPts, f.mapX, f.mapY, "#64748b", true);
       strokeSeries(ctx, sim.idealTrace.map((p) => [p.tNorm, p.hNorm]), f.mapX, f.mapY, OKABE_ITO.blue);
       strokeSeries(ctx, sim.viscTrace.map((p) => [p.tNorm, p.hNorm]), f.mapX, f.mapY, OKABE_ITO.vermilion);
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "Torricelli", color: "#64748b", dashed: true },
+        { label: "Ideal Bernoulli", color: OKABE_ITO.blue },
+        { label: "Viscous ODE", color: OKABE_ITO.vermilion },
+      ]);
     }
   } else if (hwId === "hw4") {
     if (!sim.isGas) {
@@ -1385,10 +803,15 @@ export function renderAssignmentPlotCanvas(ctx, cw, ch, hwId, v, sim, plotTabId)
         const yMax = Math.max(1.6, ...sim.thetaSweep.map((p) => p.ratio));
         const f = drawPaperPlotFrame(ctx, cw, ch, [-20, -10, 0, 10, 20], niceTicks(0, yMax, 5), "Wall Angle θ (deg)", "Emptying Ratio t_e / t_e,cyl");
         strokeSeries(ctx, sim.thetaSweep.map((p) => [p.deg, p.ratio]), f.mapX, f.mapY, OKABE_ITO.blue);
+        drawPaperLegend(ctx, cw, f.pad, [{ label: "Cone/Cyl Ratio", color: OKABE_ITO.blue }]);
       } else {
         const f = drawPaperPlotFrame(ctx, cw, ch, niceTicks(0, sim.tEnd, 5), niceTicks(0, v.h0, 5), "Time t (s)", "Liquid Depth h (m)");
         strokeSeries(ctx, sim.torrCurve.map((p) => [p.t, p.h]), f.mapX, f.mapY, OKABE_ITO.blue);
         strokeSeries(ctx, sim.unstCurve.map((p) => [p.t, p.h]), f.mapX, f.mapY, OKABE_ITO.vermilion, true);
+        drawPaperLegend(ctx, cw, f.pad, [
+          { label: "Torricelli Cone", color: OKABE_ITO.blue },
+          { label: "Unsteady + K_L", color: OKABE_ITO.vermilion, dashed: true },
+        ]);
       }
     } else if (plotTabId === "sweep") {
       const mMax = Math.max(1, ...sim.milestones.map((m) => m.t));
@@ -1415,31 +838,50 @@ export function renderAssignmentPlotCanvas(ctx, cw, ch, hwId, v, sim, plotTabId)
         ctx.arc(mx, my, 4, 0, Math.PI * 2);
         ctx.fill();
       });
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "ρ/ρ₀ = e⁻ᵗ/τ", color: OKABE_ITO.blue },
+        { label: "99/50/10/1%", color: OKABE_ITO.vermilion },
+      ]);
     }
   } else if (hwId === "hw5") {
     if (plotTabId === "pressure") {
       const f = drawPaperPlotFrame(ctx, cw, ch, [0, 0.25, 0.5, 0.75, 1.0], niceTicks(0, Math.max(0.2, sim.dp_norm_max), 5), "Gap Coord ξ = (r−R₁)/(R₂−R₁)", "Δp* vs Torque Ratio");
       strokeSeries(ctx, sim.profile.map((p) => [p.xi, p.dpNorm]), f.mapX, f.mapY, OKABE_ITO.vermilion);
+      drawPaperLegend(ctx, cw, f.pad, [{ label: "Radial Δp*(r)", color: OKABE_ITO.vermilion }]);
     } else {
       const f = drawPaperPlotFrame(ctx, cw, ch, [0, 0.25, 0.5, 0.75, 1.0], [0, 0.25, 0.5, 0.75, 1.0], "Gap Coord ξ = (r−R₁)/(R₂−R₁)", "u_θ / (Ω₁R₁)");
       strokeSeries(ctx, sim.profile.map((p) => [p.xi, p.uCouette]), f.mapX, f.mapY, "#64748b", true);
       strokeSeries(ctx, sim.profile.map((p) => [p.xi, p.uNorm]), f.mapX, f.mapY, OKABE_ITO.blue);
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "Planar Couette", color: "#64748b", dashed: true },
+        { label: "Exact u_θ", color: OKABE_ITO.blue },
+      ]);
     }
   } else if (hwId === "hw6") {
     if (plotTabId === "convergence") {
       const f = drawPaperPlotFrame(ctx, cw, ch, [-1, -0.5, 0, 0.5, 1], [0, 10, 20, 30, 45], "log₁₀(α)   [0.1 → 10]", "% Deviation vs Poiseuille (0.5)");
       strokeSeries(ctx, sim.alphaSweep.map((p) => [Math.log10(p.alpha), p.devPct]), f.mapX, f.mapY, OKABE_ITO.vermilion);
+      drawPaperLegend(ctx, cw, f.pad, [{ label: "% Below Poiseuille", color: OKABE_ITO.vermilion }]);
     } else {
       const f = drawPaperPlotFrame(ctx, cw, ch, [-1, -0.5, 0, 0.5, 1], [0, 0.125, 0.25, 0.375, 0.5], "Normalized Coord X or Y", "Velocity W* = w / (G min(a,b)²)");
       strokeSeries(ctx, sim.centerX.map((p) => [p.s, p.pois]), f.mapX, f.mapY, "#64748b", true);
       strokeSeries(ctx, sim.centerX.map((p) => [p.s, p.w]), f.mapX, f.mapY, OKABE_ITO.blue);
       strokeSeries(ctx, sim.centerY.map((p) => [p.s, p.w]), f.mapX, f.mapY, OKABE_ITO.orange);
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "Plane Poiseuille", color: "#64748b", dashed: true },
+        { label: "X-profile", color: OKABE_ITO.blue },
+        { label: "Y-profile", color: OKABE_ITO.orange },
+      ]);
     }
   } else if (hwId === "hw7") {
     if (plotTabId === "similarity") {
       const f = drawPaperPlotFrame(ctx, cw, ch, [0, 0.8, 1.6, 2.4, 3.2], [0, 0.25, 0.5, 0.75, 1.0], "Similarity Variable η = y/(2√(νt))", "erfc(η) & Gaussian ωz");
       strokeSeries(ctx, sim.simCurve.map((p) => [p.eta, p.erfcVal]), f.mapX, f.mapY, OKABE_ITO.blue);
       strokeSeries(ctx, sim.simCurve.map((p) => [p.eta, p.omegaNorm]), f.mapX, f.mapY, OKABE_ITO.vermilion, true);
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "erfc(η)", color: OKABE_ITO.blue },
+        { label: "Vorticity exp(−η²)", color: OKABE_ITO.vermilion, dashed: true },
+      ]);
     } else {
       const f = drawPaperPlotFrame(ctx, cw, ch, niceTicks(0, sim.yMaxMM, 5), [0, 0.25, 0.5, 0.75, 1.0], "Distance from Plate y (mm)", "Normalized Velocity u / U");
       const cols = [OKABE_ITO.sky, OKABE_ITO.blue, OKABE_ITO.green, OKABE_ITO.orange, OKABE_ITO.vermilion];
@@ -1457,6 +899,11 @@ export function renderAssignmentPlotCanvas(ctx, cw, ch, hwId, v, sim, plotTabId)
       if (v.bounded) {
         strokeSeries(ctx, [[0, 1], [v.H_mm, 0]], f.mapX, f.mapY, "#1e293b", true, 2.0);
       }
+      drawPaperLegend(ctx, cw, f.pad, [
+        { label: "Multi-Time u(y,t)", color: OKABE_ITO.blue },
+        { label: "Active t", color: OKABE_ITO.vermilion },
+        ...(v.bounded ? [{ label: "Steady Couette", color: "#1e293b", dashed: true }] : []),
+      ]);
     }
   }
 }
