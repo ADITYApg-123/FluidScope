@@ -113,6 +113,10 @@ function renderSidebarContent({ openView, openLab, openConcept }) {
             <span class="sidebar-nav-code">QUIZ</span>
             <span class="sidebar-nav-label">12-Twist Concept Quiz</span>
           </button>
+          <button type="button" class="sidebar-nav-btn ${currentActiveView === 'assignment' ? 'active' : ''}" data-sidebar-view="assignment">
+            <span class="sidebar-nav-code">HW</span>
+            <span class="sidebar-nav-label">Assignment (HW 1–7)</span>
+          </button>
         </div>
       </div>
 

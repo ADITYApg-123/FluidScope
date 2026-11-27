@@ -22,6 +22,7 @@ def test_all_modular_css_and_js_assets_return_200():
         "/styles/labs.css",
         "/styles/quiz.css",
         "/styles/coach.css",
+        "/styles/assignment.css",
         "/js/app.js",
         "/js/overview.js",
         "/js/math_ui.js",
@@ -48,6 +49,9 @@ def test_all_modular_css_and_js_assets_return_200():
         "/js/components/tutor_domain_panels.js",
         "/js/components/tutor_kinematics_viz.js",
         "/js/core/textbook_curriculum.js",
+        "/js/data/assignment_hw_specs.js",
+        "/js/components/assignment_engine.js",
+        "/js/stations/station_assignment.js",
     ]
     for path in assets:
         resp = client.get(path)
@@ -489,3 +493,27 @@ def test_tutor_kinematics_3panel_viz_contracts():
 
     coach_js = client.get("/js/components/coach_drawer.js").text
     assert "buildKinematicsViz" not in coach_js
+
+
+def test_assignment_workspace_contracts():
+    html = client.get("/").text
+    assert 'id="assignmentView"' in html
+    assert "Assignment" not in html.split('<nav class="topbar-actions"')[1].split("</nav>")[0] if '<nav class="topbar-actions"' in html else True
+
+    sidebar_js = client.get("/js/components/app_sidebar.js").text
+    assert 'data-sidebar-view="assignment"' in sidebar_js
+
+    specs_js = client.get("/js/data/assignment_hw_specs.js").text
+    for hw in ['id: "hw1"', 'id: "hw2"', 'id: "hw3"', 'id: "hw4"', 'id: "hw5"', 'id: "hw6"', 'id: "hw7"']:
+        assert hw in specs_js
+    assert '"4.1a"' in specs_js and '"4.2e"' in specs_js
+
+    engine_js = client.get("/js/components/assignment_engine.js").text
+    assert "computeAssignmentSim" in engine_js
+    assert "renderAssignmentAnimCanvas" in engine_js
+    assert "renderAssignmentPlotCanvas" in engine_js
+
+    station_js = client.get("/js/stations/station_assignment.js").text
+    assert "renderAssignmentView" in station_js
+    assert "destroyAssignmentView" in station_js
+    assert "/api/assignment/derive" in station_js

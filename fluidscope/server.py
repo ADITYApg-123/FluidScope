@@ -35,6 +35,7 @@ from fluidscope.core.lbm_tunnel import simulate_lbm_tunnel
 from fluidscope.ai.schemas import LLMConfig, ParsedPhysicsQuery
 from fluidscope.ai.problem_parser import parse_problem
 from fluidscope.ai.doubt_coach import answer_doubt
+from fluidscope.core.assignment_solver import solve_and_derive_assignment
 from fluidscope.data.twist_bank import TWIST_PROBLEMS
 
 
@@ -474,6 +475,23 @@ async def api_twists(_request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "data": TWIST_PROBLEMS})
 
 
+async def api_assignment_derive(request: Request) -> JSONResponse:
+    try:
+        body: dict[str, Any] = await request.json()
+        data = await asyncio.wait_for(
+            asyncio.to_thread(solve_and_derive_assignment, body),
+            timeout=14.0,
+        )
+        return JSONResponse({"ok": True, "data": data})
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            {"ok": False, "error": "Custom derivation timed out (>14s). Check expression complexity or singularities."},
+            status_code=400,
+        )
+    except Exception as exc:
+        return _error_response(exc)
+
+
 def create_app() -> Starlette:
     routes = [
         Route("/favicon.ico", favicon, methods=["GET"]),
@@ -494,6 +512,7 @@ def create_app() -> Starlette:
         Route("/api/lbm_tunnel", api_lbm_tunnel, methods=["POST"]),
         Route("/api/parse_and_solve", api_parse_and_solve, methods=["POST"]),
         Route("/api/coach", api_coach, methods=["POST"]),
+        Route("/api/assignment/derive", api_assignment_derive, methods=["POST"]),
         Route("/api/twists", api_twists, methods=["GET"]),
     ]
     if WEB_DIR.exists():

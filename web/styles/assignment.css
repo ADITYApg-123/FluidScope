@@ -1,0 +1,638 @@
+/* FluidScope AI — CAD-Style Interactive Assignment Workspace (HW 1–7) */
+
+.assignment-view {
+  padding: 10px 14px 18px;
+  min-height: calc(100vh - 58px);
+  background: var(--bg-chassis);
+  color: var(--ink-primary);
+}
+
+.assignment-view.hidden {
+  display: none !important;
+}
+
+.assignment-shell {
+  display: grid;
+  grid-template-columns: 245px minmax(0, 1fr) 375px;
+  gap: 10px;
+  align-items: start;
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+/* ── Left Rail: Homework Directory & Subparts ─────────────────────────────── */
+.assignment-left-rail {
+  background: var(--bg-bay);
+  border: 1px solid var(--seam);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: sticky;
+  top: 66px;
+  max-height: calc(100vh - 82px);
+  overflow-y: auto;
+}
+
+.assign-rail-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--seam);
+}
+
+.assign-rail-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+
+.assign-rail-hdr h2 {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+
+.assign-hw-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.assign-hw-group {
+  border: 1px solid var(--seam);
+  border-radius: 8px;
+  background: var(--bg-input);
+  overflow: hidden;
+}
+
+.assign-hw-group.active {
+  border-color: var(--accent-border);
+  background: var(--bg-bay);
+}
+
+.assign-hw-btn {
+  width: 100%;
+  text-align: left;
+  padding: 8px 9px;
+  border: none;
+  background: transparent;
+  color: var(--ink-primary);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.assign-hw-btn:hover {
+  background: var(--bg-sub);
+}
+
+.assign-hw-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.assign-hw-code {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--bg-muted);
+  color: var(--ink-secondary);
+}
+
+.assign-hw-btn.active .assign-hw-code {
+  background: var(--accent);
+  color: var(--ink-inverse);
+}
+
+.assign-hw-title {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.assign-subpart-tree {
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--seam);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg-bay);
+}
+
+.assign-hw-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.assign-sec-btn {
+  padding: 4px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  border: 1px solid var(--seam-bright);
+  border-radius: 5px;
+  background: var(--bg-input);
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.assign-sec-btn.active {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #ffffff;
+}
+
+.assign-sub-btn {
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.assign-sub-btn:hover {
+  background: var(--bg-sub);
+}
+
+.assign-sub-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Center CAD Stage ─────────────────────────────────────────────────────── */
+.assignment-center-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.assign-stage-hdr {
+  background: var(--bg-bay);
+  border: 1px solid var(--seam);
+  border-radius: 9px;
+  padding: 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.assign-stage-titles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.assign-stage-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.assign-stage-subbadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-sub);
+  color: var(--ink-secondary);
+}
+
+.assign-hover-pill {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink-muted);
+  background: var(--bg-input);
+  border: 1px solid var(--seam);
+  padding: 3px 9px;
+  border-radius: 6px;
+}
+
+.assign-canvas-wrap {
+  background: #0b1120;
+  border: 1px solid var(--seam-bright);
+  border-radius: 10px;
+  overflow: hidden;
+  height: 350px;
+  position: relative;
+}
+
+#assignAnimCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.assign-transport {
+  background: var(--bg-bay);
+  border: 1px solid var(--seam);
+  border-radius: 9px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.assign-transport-left,
+.assign-transport-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.assign-transport-mid {
+  flex: 1 1 160px;
+  display: flex;
+  align-items: center;
+}
+
+.assign-transport-mid input[type="range"] {
+  width: 100%;
+}
+
+.assign-speed-sel {
+  font-size: 11px;
+  padding: 3px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--seam-bright);
+  background: var(--bg-input);
+  color: var(--ink-primary);
+}
+
+.assign-time-clock {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink-secondary);
+  min-width: 96px;
+  text-align: right;
+}
+
+.assign-plot-bay {
+  background: var(--bg-bay);
+  border: 1px solid var(--seam);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.assign-plot-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.assign-plot-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.assign-plot-tab {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--seam-bright);
+  background: var(--bg-input);
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.assign-plot-tab.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.assign-plot-canvas-wrap {
+  height: 195px;
+  border: 1px solid var(--seam);
+  border-radius: 7px;
+  overflow: hidden;
+  background: #fcfbf8;
+}
+
+#assignPlotCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ── Right 3-Tab Inspector ────────────────────────────────────────────────── */
+.assignment-right-panel {
+  background: var(--bg-bay);
+  border: 1px solid var(--seam);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 66px;
+  max-height: calc(100vh - 82px);
+  overflow: hidden;
+}
+
+.assign-inspector-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--seam);
+  background: var(--bg-sub);
+}
+
+.assign-tab-btn {
+  padding: 9px 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.assign-tab-btn.active {
+  background: var(--bg-bay);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.assign-inspector-body {
+  padding: 10px 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.assign-subhdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  margin-bottom: 5px;
+}
+
+.assign-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.assign-chip {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--seam-bright);
+  background: var(--bg-input);
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.assign-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.assign-custom-eq-card {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.assign-eq-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.assign-eq-inputs label {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.assign-eq-inputs input {
+  padding: 4px 7px;
+  border: 1px solid var(--seam-bright);
+  border-radius: 5px;
+  background: var(--bg-bay);
+  color: var(--ink-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.assign-eq-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.assign-derive-msg {
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--ok-soft);
+  color: var(--ok-ink);
+  border: 1px solid var(--ok-border);
+}
+
+.assign-param-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.assign-param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.assign-param-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+
+.assign-param-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink-primary);
+}
+
+.assign-param-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 8px;
+  border: 1px solid var(--seam);
+  border-radius: 7px;
+  background: var(--bg-input);
+  cursor: pointer;
+}
+
+.assign-select {
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--seam-bright);
+  background: var(--bg-input);
+  color: var(--ink-primary);
+  font-size: 12px;
+}
+
+/* Question & Solution Cards */
+.assign-statement-card {
+  background: var(--bg-input);
+  border: 1px solid var(--seam);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.assign-statement-body {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-primary);
+}
+
+.assign-subparts-col,
+.assign-sol-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.assign-q-subpart {
+  border: 1px solid var(--seam);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--bg-bay);
+  cursor: pointer;
+}
+
+.assign-q-subpart.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.assign-q-subhdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.assign-q-prompt {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-secondary);
+}
+
+.assign-sol-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--seam);
+}
+
+.assign-all-chk {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--ink-secondary);
+  margin-left: auto;
+  cursor: pointer;
+}
+
+.assign-step-card {
+  background: var(--bg-input);
+  border: 1px solid var(--seam);
+  border-left: 3px solid var(--accent);
+  border-radius: 7px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.assign-step-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+
+.assign-step-expl {
+  font-size: 12px;
+  line-height: 1.48;
+  color: var(--ink-secondary);
+}
+
+.assign-step-tex {
+  overflow-x: auto;
+  padding: 4px 0;
+}
+
+.btn-xs {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+@media (max-width: 1120px) {
+  .assignment-shell {
+    grid-template-columns: 1fr;
+  }
+  .assignment-left-rail,
+  .assignment-right-panel {
+    position: static;
+    max-height: none;
+  }
+}

@@ -29,6 +29,7 @@ import { initAppSidebar, syncActiveSidebarView, syncActiveSubtopic } from "./com
 import { initTopicModal } from "./components/topic_modal.js";
 import { renderConcept11, destroyConcept11, scrollToConceptSubtopic } from "./components/concept_1_1.js";
 import { unmountTutorKinematicsViz } from "./components/tutor_kinematics_viz.js";
+import { renderAssignmentView, destroyAssignmentView } from "./stations/station_assignment.js";
 
 const flowEngine = new FlowCanvasEngine(
   document.getElementById("flowCanvas"),
@@ -664,6 +665,7 @@ function openView(view) {
   state.activeView = view;
   const overviewEl = document.getElementById("overviewView");
   const conceptEl = document.getElementById("conceptView");
+  const assignmentEl = document.getElementById("assignmentView");
   const workbenchEl = document.getElementById("workbenchView");
   const labStrip = document.getElementById("labSelectorStrip");
 
@@ -679,6 +681,8 @@ function openView(view) {
   if (view === "concept-1.1") {
     cancelLabPending();
     unmountTutorKinematicsViz({ flowEngine, plotEngine }, { skipPlotRepaint: true });
+    destroyAssignmentView();
+    assignmentEl?.classList.add("hidden");
     flowEngine.setInteractiveHandles?.([], null);
     flowEngine.setDrawMode?.(null, null);
     flowEngine.setExternalHover?.(null);
@@ -701,6 +705,22 @@ function openView(view) {
   destroyConcept11();
   conceptEl?.classList.add("hidden");
   syncActiveSubtopic(null, null, null);
+
+  if (view === "assignment") {
+    cancelLabPending();
+    unmountTutorKinematicsViz({ flowEngine, plotEngine }, { skipPlotRepaint: true });
+    overviewEl?.classList.add("hidden");
+    workbenchEl?.classList.add("hidden");
+    if (assignmentEl) {
+      assignmentEl.classList.remove("hidden");
+      renderAssignmentView(assignmentEl);
+    }
+    window.scrollTo({ top: 0, behavior: "auto" });
+    return;
+  }
+
+  destroyAssignmentView();
+  assignmentEl?.classList.add("hidden");
 
   if (view === "overview") {
     cancelLabPending();
