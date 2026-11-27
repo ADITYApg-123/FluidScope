@@ -29,7 +29,7 @@ import { initAppSidebar, syncActiveSidebarView, syncActiveSubtopic } from "./com
 import { initTopicModal } from "./components/topic_modal.js";
 import { renderConcept11, destroyConcept11, scrollToConceptSubtopic } from "./components/concept_1_1.js";
 import { unmountTutorKinematicsViz } from "./components/tutor_kinematics_viz.js";
-import { renderAssignmentView, destroyAssignmentView } from "./stations/station_assignment.js";
+import { renderAssignmentView, destroyAssignmentView } from "./stations/station_assignment.js?v=2";
 
 const flowEngine = new FlowCanvasEngine(
   document.getElementById("flowCanvas"),

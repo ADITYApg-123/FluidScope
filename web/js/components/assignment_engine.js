@@ -6,15 +6,61 @@ import { fmtNum, niceTicks, OKABE_ITO } from "../core/color_scales.js";
 import {
   DARK_BG,
   clamp,
-  computeFittedTransform,
-  worldToPx,
-  pxToWorld,
+  computeFittedTransform as _coreComputeFittedTransform,
+  worldToPx as _coreWorldToPx,
+  pxToWorld as _corePxToWorld,
   drawDraftingFrame,
-  drawArrowHead,
-  drawPill,
+  drawArrowHead as _coreDrawArrowHead,
+  drawPill as _coreDrawPill,
   createFieldSampler,
-  speedRgb,
+  speedRgb as _coreSpeedRgb,
 } from "./tutor_canvas_core.js";
+
+function computeFittedTransform(rawBounds, cw, ch, pad, aspectLock = true) {
+  const arr = Array.isArray(rawBounds)
+    ? rawBounds
+    : [rawBounds.xMin, rawBounds.xMax, rawBounds.yMin, rawBounds.yMax];
+  return _coreComputeFittedTransform(arr, cw, ch, pad, aspectLock);
+}
+
+function worldToPx(wx, wy, tr) {
+  const [x, y] = _coreWorldToPx(wx, wy, tr);
+  return { x, y };
+}
+
+function pxToWorld(px, py, tr) {
+  const [x, y] = _corePxToWorld(px, py, tr);
+  return { x, y };
+}
+
+function speedRgb(t, alpha = 1) {
+  const [r, g, b] = _coreSpeedRgb(clamp(t, 0, 1));
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function drawArrowHead(ctx, xTip, yTip, angleRad, size, color) {
+  const back = Math.max(4, size * 1.4);
+  _coreDrawArrowHead(
+    ctx,
+    xTip - Math.cos(angleRad) * back,
+    yTip - Math.sin(angleRad) * back,
+    xTip,
+    yTip,
+    color,
+    1.5,
+    size
+  );
+}
+
+function drawPill(ctx, text, cx, cy, accentColor = "#e2e8f0") {
+  ctx.save();
+  ctx.font = '600 11px "IBM Plex Mono", monospace';
+  const halfW = ctx.measureText(text).width * 0.5 + 10;
+  ctx.restore();
+  const canvasW = ctx.canvas ? ctx.canvas.clientWidth || ctx.canvas.width || cx * 2 : cx * 2;
+  const safeCx = clamp(cx, halfW + 8, Math.max(halfW + 8, canvasW - halfW - 8));
+  _coreDrawPill(ctx, safeCx, cy, text, accentColor);
+}
 
 // ── Mathematical Utilities ──────────────────────────────────────────────────
 

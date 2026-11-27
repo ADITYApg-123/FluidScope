@@ -7,7 +7,7 @@ import {
   computeAssignmentSim,
   renderAssignmentAnimCanvas,
   renderAssignmentPlotCanvas,
-} from "../components/assignment_engine.js";
+} from "../components/assignment_engine.js?v=2";
 import { loadLLMConfig } from "../core/store.js";
 import { fmtNum } from "../core/color_scales.js";
 import { renderTex, formatRichText, formatInlineRichText } from "../math_ui.js";
@@ -436,8 +436,12 @@ function refreshDynamicPanels() {
   ensureValidSelection(hw);
   const v = getValues(hw);
   const sim = computeAssignmentSim(hw.id, v, _ws.customKinByHw[hw.id]);
-  paintCanvases(hw, v, sim);
   renderInspectorBody(hw, v, sim);
+  try {
+    paintCanvases(hw, v, sim);
+  } catch (err) {
+    console.error("Assignment canvas render error:", err);
+  }
 }
 
 function rebuildFullShell() {
@@ -566,8 +570,12 @@ function rebuildFullShell() {
     </div>
   `;
 
-  paintCanvases(hw, v, sim);
   renderInspectorBody(hw, v, sim);
+  try {
+    paintCanvases(hw, v, sim);
+  } catch (err) {
+    console.error("Assignment canvas render error:", err);
+  }
 }
 
 function attachDelegatedEvents() {
