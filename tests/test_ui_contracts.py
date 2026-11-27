@@ -44,6 +44,8 @@ def test_all_modular_css_and_js_assets_return_200():
         "/js/components/app_sidebar.js",
         "/js/components/topic_modal.js",
         "/js/components/concept_1_1.js",
+        "/js/components/tutor_canvas_core.js",
+        "/js/components/tutor_domain_panels.js",
         "/js/components/tutor_kinematics_viz.js",
         "/js/core/textbook_curriculum.js",
     ]
@@ -453,17 +455,30 @@ def test_api_parser_defects_and_kinematics_complex_weak_singularity():
 
 
 def test_tutor_kinematics_3panel_viz_contracts():
-    """Verify AI Tutor 3-panel kinematics visualizer assets and CSS wiring."""
+    """Verify AI Tutor 3-panel animated visualizer assets, all-family dispatch, and CSS wiring."""
+    core_js = client.get("/js/components/tutor_canvas_core.js")
+    assert core_js.status_code == 200
+    assert "createFieldSampler" in core_js.text
+
+    domain_js = client.get("/js/components/tutor_domain_panels.js")
+    assert domain_js.status_code == 200
+    assert "createDenseFieldPanel" in domain_js.text
+    assert "createFocusedRightPanel" in domain_js.text
+
     viz_js = client.get("/js/components/tutor_kinematics_viz.js")
     assert viz_js.status_code == 200
+    assert "mountTutorViz" in viz_js.text
+    assert "unmountTutorViz" in viz_js.text
     assert "mountTutorKinematicsViz" in viz_js.text
     assert "unmountTutorKinematicsViz" in viz_js.text
     assert "tutorFieldCanvas" in viz_js.text
     assert "tutorLagCanvas" in viz_js.text
+    for fam in ["hydraulic_jump", "vortex_flow", "lbm_tunnel", "rotating_vessel", "accelerating_tank"]:
+        assert fam in viz_js.text
 
     s1_js = client.get("/js/stations/station01.js").text
-    assert "mountTutorKinematicsViz" in s1_js
-    assert "unmountTutorKinematicsViz" in s1_js
+    assert "mountTutorViz" in s1_js
+    assert "unmountTutorViz" in s1_js
 
     app_js = client.get("/js/app.js").text
     assert "unmountTutorKinematicsViz" in app_js

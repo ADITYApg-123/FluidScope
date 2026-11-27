@@ -9,7 +9,7 @@ import { bus, loadLLMConfig, persistLLMConfig } from "../core/store.js";
 import { fmtNum } from "../core/color_scales.js";
 import { formatInlineRichText, formatRichText } from "../math_ui.js";
 import { displaySolvedFamily } from "./scene_mapper.js";
-import { mountTutorKinematicsViz, unmountTutorKinematicsViz } from "../components/tutor_kinematics_viz.js";
+import { mountTutorViz, unmountTutorViz } from "../components/tutor_kinematics_viz.js";
 
 const SAMPLE_PROMPTS = [
   {
@@ -641,11 +641,11 @@ export function renderStation01(ctx) {
       await refreshAudit(auditCtx);
 
       renderParsedCard(out.parsed);
-      displaySolvedFamily(out.parsed.family, out.solver_data, ctx);
-      if (out.parsed?.family === "kinematics_equation" && out.solver_data?.field?.U) {
-        mountTutorKinematicsViz(out.solver_data, ctx);
+      const spec = displaySolvedFamily(out.parsed.family, out.solver_data, ctx);
+      if (out.parsed?.family && out.parsed.family !== "unsupported_3d" && out.solver_data && spec?.scene) {
+        mountTutorViz(out.parsed.family, out.solver_data, spec, ctx);
       } else {
-        unmountTutorKinematicsViz(ctx);
+        unmountTutorViz(ctx);
       }
       applyParsedBannerAndCards(out.parsed);
       emitSolverUpdated(out.parsed, out.solver_data);
@@ -666,11 +666,16 @@ export function renderStation01(ctx) {
     const auditCtx = FAMILY_AUDIT_CTX[state.s1.lastParsed?.family] || "ns_x";
     refreshAudit(auditCtx);
     renderParsedCard(state.s1.lastParsed);
-    displaySolvedFamily(state.s1.lastParsed.family, state.s1.lastSolverData, ctx);
-    if (state.s1.lastParsed?.family === "kinematics_equation" && state.s1.lastSolverData?.field?.U) {
-      mountTutorKinematicsViz(state.s1.lastSolverData, ctx);
+    const spec = displaySolvedFamily(state.s1.lastParsed.family, state.s1.lastSolverData, ctx);
+    if (
+      state.s1.lastParsed?.family &&
+      state.s1.lastParsed.family !== "unsupported_3d" &&
+      state.s1.lastSolverData &&
+      spec?.scene
+    ) {
+      mountTutorViz(state.s1.lastParsed.family, state.s1.lastSolverData, spec, ctx);
     } else {
-      unmountTutorKinematicsViz(ctx);
+      unmountTutorViz(ctx);
     }
     applyParsedBannerAndCards(state.s1.lastParsed);
     emitSolverUpdated(state.s1.lastParsed, state.s1.lastSolverData);
