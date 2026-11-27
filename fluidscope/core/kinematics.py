@@ -119,11 +119,26 @@ def _lambdify_2d(expr: sp.Expr):
 def _safe_eval_point(fn, x0: float, y0: float, t0: float) -> float | None:
     try:
         val = fn(float(x0), float(y0), float(t0))
-        if val is None or not math.isfinite(val):
+        if val is None or not math.isfinite(val) or abs(val) > 1e7:
             return None
         return float(val)
     except Exception:
         return None
+
+
+_SINGULARITY_SPEED_LIMIT = 2500.0
+
+
+def _make_step_limit_event(max_evals: int = 2500):
+    count = [0]
+
+    def limit_event(_t, _state):
+        count[0] += 1
+        return float(max_evals - count[0])
+
+    limit_event.terminal = True
+    limit_event.direction = -1
+    return limit_event
 
 
 def _integrate_streamline(
@@ -137,6 +152,11 @@ def _integrate_streamline(
 ) -> list[list[float]]:
     xmin, xmax, ymin, ymax = bounds
 
+    uv0 = _safe_eval_point(u_fn, x0, y0, t_eval)
+    vv0 = _safe_eval_point(v_fn, x0, y0, t_eval)
+    if uv0 is None or vv0 is None or math.hypot(uv0, vv0) > _SINGULARITY_SPEED_LIMIT:
+        return [[float(x0), float(y0)]]
+
     def unit_rhs(_s, state):
         px, py = float(state[0]), float(state[1])
         if not (xmin <= px <= xmax and ymin <= py <= ymax):
@@ -146,7 +166,7 @@ def _integrate_streamline(
         if uv is None or vv is None:
             return [0.0, 0.0]
         spd = math.hypot(uv, vv)
-        if spd < 1e-9:
+        if spd < 1e-9 or spd > _SINGULARITY_SPEED_LIMIT * 4.0:
             return [0.0, 0.0]
         return [uv / spd, vv / spd]
 
@@ -167,12 +187,22 @@ def _integrate_streamline(
     stag_event.terminal = True
     stag_event.direction = -1
 
+    def sing_event(_s, state):
+        uv = _safe_eval_point(u_fn, state[0], state[1], t_eval)
+        vv = _safe_eval_point(v_fn, state[0], state[1], t_eval)
+        if uv is None or vv is None:
+            return -1.0
+        return _SINGULARITY_SPEED_LIMIT - math.hypot(uv, vv)
+
+    sing_event.terminal = True
+    sing_event.direction = -1
+
     pts_back: list[list[float]] = []
     sol_b = solve_ivp(
         lambda s, st: [-c for c in unit_rhs(s, st)],
         (0.0, max_arc * 0.5),
         [x0, y0],
-        events=[out_event, stag_event],
+        events=[out_event, stag_event, sing_event, _make_step_limit_event(2500)],
         max_step=0.06,
         rtol=1e-6,
         atol=1e-8,
@@ -184,12 +214,14 @@ def _integrate_streamline(
         unit_rhs,
         (0.0, max_arc * 0.65),
         [x0, y0],
-        events=[out_event, stag_event],
+        events=[out_event, stag_event, sing_event, _make_step_limit_event(2500)],
         max_step=0.06,
         rtol=1e-6,
         atol=1e-8,
     )
     pts_fwd = [[float(sol_f.y[0, i]), float(sol_f.y[1, i])] for i in range(sol_f.y.shape[1])]
+    if not pts_back and not pts_fwd:
+        return [[float(x0), float(y0)]]
     return pts_back + pts_fwd
 
 
@@ -206,6 +238,11 @@ def _advect_particle(
     if abs(t_b - t_a) < 1e-12:
         return np.array([[x_start, y_start]], dtype=np.float64)
 
+    uv0 = _safe_eval_point(u_fn, x_start, y_start, t_a)
+    vv0 = _safe_eval_point(v_fn, x_start, y_start, t_a)
+    if uv0 is None or vv0 is None or math.hypot(uv0, vv0) > _SINGULARITY_SPEED_LIMIT:
+        return np.array([[x_start, y_start]], dtype=np.float64)
+
     xmin, xmax, ymin, ymax = bounds
     margin = 0.5 * max(xmax - xmin, ymax - ymin)
     ext_bounds = (xmin - margin, xmax + margin, ymin - margin, ymax + margin)
@@ -215,6 +252,9 @@ def _advect_particle(
         uv = _safe_eval_point(u_fn, px, py, t_cur)
         vv = _safe_eval_point(v_fn, px, py, t_cur)
         if uv is None or vv is None:
+            return [0.0, 0.0]
+        spd = math.hypot(uv, vv)
+        if spd > _SINGULARITY_SPEED_LIMIT * 4.0:
             return [0.0, 0.0]
         return [uv, vv]
 
@@ -229,17 +269,29 @@ def _advect_particle(
     out_ext.terminal = True
     out_ext.direction = -1
 
+    def sing_event(t_cur, state):
+        uv = _safe_eval_point(u_fn, state[0], state[1], t_cur)
+        vv = _safe_eval_point(v_fn, state[0], state[1], t_cur)
+        if uv is None or vv is None:
+            return -1.0
+        return _SINGULARITY_SPEED_LIMIT - math.hypot(uv, vv)
+
+    sing_event.terminal = True
+    sing_event.direction = -1
+
     t_eval = np.linspace(t_a, t_b, n_samples)
     sol = solve_ivp(
         rhs,
         (t_a, t_b),
         [x_start, y_start],
         t_eval=t_eval,
-        events=[out_ext],
+        events=[out_ext, sing_event, _make_step_limit_event(1800)],
         rtol=1e-7,
         atol=1e-9,
         max_step=max(abs(t_b - t_a) / 25.0, 1e-4),
     )
+    if sol.y.size == 0 or sol.y.shape[1] == 0:
+        return np.array([[x_start, y_start]], dtype=np.float64)
     return sol.y.T
 
 

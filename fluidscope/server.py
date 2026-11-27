@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 from starlette.applications import Starlette
@@ -75,19 +76,31 @@ async def api_audit(request: Request) -> JSONResponse:
 async def api_kinematics(request: Request) -> JSONResponse:
     try:
         body: dict[str, Any] = await request.json()
-        data = analyze_kinematics(
-            u_str=body.get("u_str", "x / (t + t0)"),
-            v_str=body.get("v_str", "v0"),
-            params=body.get("params", {"t0": 1.0, "v0": 1.0}),
-            x0=float(body.get("x0", 1.0)),
-            y0=float(body.get("y0", 0.0)),
-            t0=float(body.get("t0", 1.0)),
-            t_eval=float(body.get("t_eval", 2.0)),
-            bounds=tuple(float(v) for v in body.get("bounds", [-1.0, 7.0, -1.0, 4.0])),
-            loop_center=tuple(float(v) for v in body.get("loop_center", [2.0, 1.0])),
-            loop_radius=float(body.get("loop_radius", 0.8)),
+        data = await asyncio.wait_for(
+            asyncio.to_thread(
+                analyze_kinematics,
+                u_str=body.get("u_str", "x / (t + t0)"),
+                v_str=body.get("v_str", "v0"),
+                params=body.get("params", {"t0": 1.0, "v0": 1.0}),
+                x0=float(body.get("x0", 1.0)),
+                y0=float(body.get("y0", 0.0)),
+                t0=float(body.get("t0", 1.0)),
+                t_eval=float(body.get("t_eval", 2.0)),
+                bounds=tuple(float(v) for v in body.get("bounds", [-1.0, 7.0, -1.0, 4.0])),
+                loop_center=tuple(float(v) for v in body.get("loop_center", [2.0, 1.0])),
+                loop_radius=float(body.get("loop_radius", 0.8)),
+            ),
+            timeout=6.0,
         )
         return JSONResponse({"ok": True, "data": data})
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "Kinematics calculation timed out (>6s). Check for strong singularities near the seed point.",
+            },
+            status_code=400,
+        )
     except Exception as exc:
         return _error_response(exc)
 
@@ -289,13 +302,22 @@ async def api_lbm_tunnel(request: Request) -> JSONResponse:
             body.get("customObstacles") is not None or "preset" not in body or preset == "custom"
         ):
             preset = "custom"
-        data = simulate_lbm_tunnel(
-            preset=preset,
-            reynolds=float(body.get("reynolds", 100.0)),
-            n_steps=int(body.get("n_steps", 450)),
-            obstacles=obstacles,
+        data = await asyncio.wait_for(
+            asyncio.to_thread(
+                simulate_lbm_tunnel,
+                preset=preset,
+                reynolds=float(body.get("reynolds", 100.0)),
+                n_steps=int(body.get("n_steps", 450)),
+                obstacles=obstacles,
+            ),
+            timeout=10.0,
         )
         return JSONResponse({"ok": True, "data": data})
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            {"ok": False, "error": "LBM simulation timed out (>10s). Try lowering step count."},
+            status_code=400,
+        )
     except Exception as exc:
         return _error_response(exc)
 
@@ -407,8 +429,8 @@ async def api_parse_and_solve(request: Request) -> JSONResponse:
         body: dict[str, Any] = await request.json()
         text = str(body.get("text", "")).strip()
         cfg = LLMConfig.model_validate(body.get("llm_config") or {})
-        parsed = parse_problem(text, cfg)
-        solver_data = _dispatch_parsed_solver(parsed)
+        parsed = await asyncio.wait_for(asyncio.to_thread(parse_problem, text, cfg), timeout=10.0)
+        solver_data = await asyncio.wait_for(asyncio.to_thread(_dispatch_parsed_solver, parsed), timeout=8.0)
         if parsed.family == "kinematics_equation" and isinstance(solver_data, dict) and "classification" in solver_data:
             cls = solver_data["classification"]
             for flag in ("steady", "incompressible", "irrotational"):
@@ -423,6 +445,14 @@ async def api_parse_and_solve(request: Request) -> JSONResponse:
                 "solver_data": solver_data,
             },
         })
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "Solver timed out (>8s). The equation may contain a severe singularity or high stiffness.",
+            },
+            status_code=400,
+        )
     except Exception as exc:
         return _error_response(exc)
 

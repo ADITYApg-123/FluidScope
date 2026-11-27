@@ -44,6 +44,7 @@ def test_all_modular_css_and_js_assets_return_200():
         "/js/components/app_sidebar.js",
         "/js/components/topic_modal.js",
         "/js/components/concept_1_1.js",
+        "/js/components/tutor_kinematics_viz.js",
         "/js/core/textbook_curriculum.js",
     ]
     for path in assets:
@@ -449,3 +450,27 @@ def test_api_parser_defects_and_kinematics_complex_weak_singularity():
     weak_data = weak_kin.json()["data"]
     assert weak_data["stokes_check"]["singularity_suspected"] is True
     assert weak_data["stokes_check"]["circulation_line"] == pytest.approx(2.0 * math.pi * 0.005, rel=1e-3)
+
+
+def test_tutor_kinematics_3panel_viz_contracts():
+    """Verify AI Tutor 3-panel kinematics visualizer assets and CSS wiring."""
+    viz_js = client.get("/js/components/tutor_kinematics_viz.js")
+    assert viz_js.status_code == 200
+    assert "mountTutorKinematicsViz" in viz_js.text
+    assert "unmountTutorKinematicsViz" in viz_js.text
+    assert "tutorFieldCanvas" in viz_js.text
+    assert "tutorLagCanvas" in viz_js.text
+
+    s1_js = client.get("/js/stations/station01.js").text
+    assert "mountTutorKinematicsViz" in s1_js
+    assert "unmountTutorKinematicsViz" in s1_js
+
+    app_js = client.get("/js/app.js").text
+    assert "unmountTutorKinematicsViz" in app_js
+
+    canvas_css = client.get("/styles/canvas.css").text
+    assert ".canvas-deck.tutor-kin-active" in canvas_css
+    assert ".tutor-kin-top-row" in canvas_css
+
+    coach_js = client.get("/js/components/coach_drawer.js").text
+    assert "buildKinematicsViz" not in coach_js

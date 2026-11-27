@@ -28,6 +28,7 @@ import { createLab2dLesson } from "./lessons/lesson_02d.js";
 import { initAppSidebar, syncActiveSidebarView, syncActiveSubtopic } from "./components/app_sidebar.js";
 import { initTopicModal } from "./components/topic_modal.js";
 import { renderConcept11, destroyConcept11, scrollToConceptSubtopic } from "./components/concept_1_1.js";
+import { unmountTutorKinematicsViz } from "./components/tutor_kinematics_viz.js";
 
 const flowEngine = new FlowCanvasEngine(
   document.getElementById("flowCanvas"),
@@ -590,6 +591,7 @@ function closeCoachDrawerHost() {
 function openStation(bayId) {
   cancelLabPending();
   clearSecondaryControls();
+  unmountTutorKinematicsViz({ flowEngine, plotEngine }, { skipPlotRepaint: bayId === "01" });
   state.equationContext = "ns_x";
   state.assumptionCauses = { steady: "", incompressible: "", irrotational: "" };
   state.activeCoachContext = { parsedQuery: null, solverData: null, suggestedPrompt: "" };
@@ -676,6 +678,7 @@ function openView(view) {
 
   if (view === "concept-1.1") {
     cancelLabPending();
+    unmountTutorKinematicsViz({ flowEngine, plotEngine }, { skipPlotRepaint: true });
     flowEngine.setInteractiveHandles?.([], null);
     flowEngine.setDrawMode?.(null, null);
     flowEngine.setExternalHover?.(null);
@@ -701,6 +704,7 @@ function openView(view) {
 
   if (view === "overview") {
     cancelLabPending();
+    unmountTutorKinematicsViz({ flowEngine, plotEngine }, { skipPlotRepaint: true });
     flowEngine.setInteractiveHandles?.([], null);
     flowEngine.setDrawMode?.(null, null);
     flowEngine.setExternalHover?.(null);

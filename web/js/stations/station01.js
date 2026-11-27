@@ -9,6 +9,7 @@ import { bus, loadLLMConfig, persistLLMConfig } from "../core/store.js";
 import { fmtNum } from "../core/color_scales.js";
 import { formatInlineRichText, formatRichText } from "../math_ui.js";
 import { displaySolvedFamily } from "./scene_mapper.js";
+import { mountTutorKinematicsViz, unmountTutorKinematicsViz } from "../components/tutor_kinematics_viz.js";
 
 const SAMPLE_PROMPTS = [
   {
@@ -641,6 +642,11 @@ export function renderStation01(ctx) {
 
       renderParsedCard(out.parsed);
       displaySolvedFamily(out.parsed.family, out.solver_data, ctx);
+      if (out.parsed?.family === "kinematics_equation" && out.solver_data?.field?.U) {
+        mountTutorKinematicsViz(out.solver_data, ctx);
+      } else {
+        unmountTutorKinematicsViz(ctx);
+      }
       applyParsedBannerAndCards(out.parsed);
       emitSolverUpdated(out.parsed, out.solver_data);
       await runCoach();
@@ -661,6 +667,11 @@ export function renderStation01(ctx) {
     refreshAudit(auditCtx);
     renderParsedCard(state.s1.lastParsed);
     displaySolvedFamily(state.s1.lastParsed.family, state.s1.lastSolverData, ctx);
+    if (state.s1.lastParsed?.family === "kinematics_equation" && state.s1.lastSolverData?.field?.U) {
+      mountTutorKinematicsViz(state.s1.lastSolverData, ctx);
+    } else {
+      unmountTutorKinematicsViz(ctx);
+    }
     applyParsedBannerAndCards(state.s1.lastParsed);
     emitSolverUpdated(state.s1.lastParsed, state.s1.lastSolverData);
     renderCoachReply(state.s1.lastCoach);

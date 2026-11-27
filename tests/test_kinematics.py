@@ -321,3 +321,23 @@ def test_complex_imaginary_velocity_expressions_rejected_without_warnings():
     ex310 = analyze_kinematics("x / (t + t0)", "v0", params={"t0": 1.0, "v0": 1.0}, x0=1.0, y0=0.0, t0=1.0, t_eval=2.0)
     assert ex310["classification"]["steady"] is False
 
+
+def test_radial_source_singularity_at_origin_terminates_quickly():
+    """Verify backward streamline integration toward (0, 0) in 2D radial source flow stops cleanly without hanging."""
+    import time
+
+    t_start = time.monotonic()
+    res = analyze_kinematics(
+        u_str="x / (x^2 + y^2)",
+        v_str="y / (x^2 + y^2)",
+        x0=1.0,
+        y0=0.0,
+        t0=1.0,
+        t_eval=2.0,
+    )
+    elapsed = time.monotonic() - t_start
+    assert elapsed < 3.0
+    assert res["classification"]["steady"] is True
+    assert res["curves"]["pathline"][-1][0] == pytest.approx(math.sqrt(3.0), abs=1e-3)
+    assert len(res["curves"]["streamline"]) >= 2
+
